@@ -4,6 +4,6 @@ Work in progress compiling authenticated garbling from [emp-toolkit/emp-ag2pc](h
 
 Currently this is just a stripped down version that you can compile with a single clang++ command (see `build.sh`).
 
-# License
+# Licenses
 
-See [emp-toolkit](https://github.com/emp-toolkit) repos.
+All MIT licensed but with different authors in different places. See per-directory and per-file licenses. TODO: make this easier.
