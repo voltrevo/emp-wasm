@@ -12,8 +12,6 @@ using std::min;
 #include "emp-tool/utils/hash.h"
 #include "emp-tool/utils/prg.h"
 #include "emp-tool/utils/prp.h"
-#include "emp-tool/utils/crh.h"
-#include "emp-tool/utils/tccrh.h"
 #include "emp-tool/utils/utils.h"
 #include "emp-tool/utils/ThreadPool.h"
 #include "emp-tool/utils/group.h"
@@ -27,5 +25,3 @@ using std::min;
 
 #include "emp-tool/execution/circuit_execution.h"
 #include "emp-tool/execution/protocol_execution.h"
-#include "emp-tool/execution/plain_circ.h"
-#include "emp-tool/execution/plain_prot.h"
