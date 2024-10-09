@@ -3,6 +3,8 @@
 #include <emp-tool/emp-tool.h>
 #include "emp-ag2pc/fpre.h"
 
+#include <vector>
+
 namespace emp {
 template<typename T>
 class C2PC { public:
@@ -25,6 +27,9 @@ class C2PC { public:
 	T * io;
 	int num_ands = 0;
 	int party, total_pre;
+
+	int input_size;
+
 	C2PC(T * io, int party, BristolFormat * cf) {
 		this->party = party;
 		this->io = io;
@@ -271,7 +276,18 @@ class C2PC { public:
 		io->flush();
 	}
 
-	void online (const bool * input, bool * output, bool alice_output = false) {
+	std::vector<bool> online(
+		const std::vector<bool>& input,
+		bool alice_output = false
+	) {
+		std::vector<bool> output(cf->n3);
+
+		int correct_input_size = party == ALICE ? cf->n2 : cf->n1;
+
+		if (input.size() != correct_input_size) {
+			throw std::invalid_argument("input size does not match circuit");
+		}
+
 		uint8_t * mask_input = new uint8_t[cf->num_wire];
 		memset(mask_input, 0, cf->num_wire);
 		block tmp;
@@ -281,7 +297,7 @@ class C2PC { public:
 #endif
 		if(party == ALICE) {
 			for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
-				mask_input[i] = logic_xor(input[i], getLSB(mac[i]));
+				mask_input[i] = logic_xor(input[i - cf->n1], getLSB(mac[i]));
 				mask_input[i] = logic_xor(mask_input[i], mask[i]);
 			}
 			io->recv_data(mask_input, cf->n1);
@@ -403,6 +419,8 @@ class C2PC { public:
 
 		}
 		delete[] mask_input;
+
+		return output;
 	}
 
 	void check(block * MAC, block * KEY, bool * r, int length = 1) {

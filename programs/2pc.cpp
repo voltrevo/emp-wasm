@@ -61,8 +61,8 @@ int main(int argc, char** argv) {
     io->flush();
     cout << "dep:\t" << party << "\t" << time_from(t1) << endl;
 
-    bool in[512] = {false};
-	bool out[512] = {false};
+	int input_size = party == ALICE ? 0 : 512;
+	std::vector<bool> in(input_size);
 
 	if (party == BOB) {
 		// we need a single starting 1 for a valid sha-1 block
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 	}
 
     t1 = clock_start();
-    twopc.online(in, out);
+    std::vector<bool> out = twopc.online(in);
     cout << "online:\t" << party << "\t" << time_from(t1) << endl;
     if (party == BOB) {
         string res = "";
