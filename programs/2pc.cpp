@@ -34,7 +34,9 @@ std::string hex_to_binary(std::string hex);
 std::string binary_to_hex(const std::string& bin);
 
 const string circuit_file_location = "circuits/sha-1.txt";
-static char out3[] = "92b404e556588ced6c1acd4ebf053f6809f73a93";
+
+// can be independently calculated eg with https://xorbin.com/tools/sha1-hash-calculator
+const string sha1_empty = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
 
 int main(int argc, char** argv) {
     int port, party;
@@ -59,16 +61,22 @@ int main(int argc, char** argv) {
     io->flush();
     cout << "dep:\t" << party << "\t" << time_from(t1) << endl;
 
-    bool in[512], out[512];
-    if (party == ALICE) {
-        in[0] = in[1] = true;
-        in[2] = in[3] = false;
-    } else {
-        in[0] = in[2] = true;
-        in[1] = in[3] = false;
-    }
-    for (int i = 0; i < 512; ++i)
-        in[i] = false;
+    bool in[512] = {false};
+	bool out[512] = {false};
+
+	if (party == BOB) {
+		// we need a single starting 1 for a valid sha-1 block
+		// this will result in sha1("") == da39a3ee5e6b4b0d3255bfef95601890afd80709
+		in[0] = true;
+
+		// also btw it's bob's input that matters for our circuit (see sha-1.txt)
+		// 512 0   160
+		// |   |   ^ 160 output bits
+		// |   ^ 0 input bits from Alice
+		// ^ 512 input bits from Bob
+		// (idk why but Bob's input comes first 🤷‍♂️)
+	}
+
     t1 = clock_start();
     twopc.online(in, out);
     cout << "online:\t" << party << "\t" << time_from(t1) << endl;
@@ -78,8 +86,8 @@ int main(int argc, char** argv) {
             res += (out[i] ? "1" : "0");
         cout << res << endl;
         cout << binary_to_hex(res) << endl;
-        cout << out3 << endl;
-        cout << (binary_to_hex(res) == string(out3) ? "GOOD!" : "BAD!") << endl;
+        cout << sha1_empty << endl;
+        cout << (binary_to_hex(res) == string(sha1_empty) ? "GOOD!" : "BAD!") << endl;
     }
     delete io;
     return 0;
