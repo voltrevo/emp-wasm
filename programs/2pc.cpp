@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     cout << "online:\t" << party << "\t" << time_from(t1) << endl;
     if (party == BOB) {
         string res = "";
-        for (int i = 0; i < 160; ++i)
+        for (int i = 0; i < out.size(); ++i)
             res += (out[i] ? "1" : "0");
         cout << res << endl;
         cout << binary_to_hex(res) << endl;
