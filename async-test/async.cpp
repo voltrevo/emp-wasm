@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "Buffer.hpp"
+
 extern "C" {
     EMSCRIPTEN_KEEPALIVE
     uint8_t* js_malloc(int size) {
@@ -10,7 +12,7 @@ extern "C" {
     }
 }
 
-EM_ASYNC_JS(uint8_t*, get_data, (int* lengthPtr), {
+EM_ASYNC_JS(uint8_t*, get_data_impl, (int* lengthPtr), {
     console.log("JavaScript: Waiting for data...");
 
     // Simulate asynchronous data retrieval
@@ -37,21 +39,23 @@ EM_ASYNC_JS(uint8_t*, get_data, (int* lengthPtr), {
     return dataPtr;
 });
 
+Buffer get_data() {
+    int length;
+    uint8_t* data = get_data_impl(&length);
+    return Buffer(data, length);
+}
+
 int main() {
     puts("C++: Before calling get_data");
 
-    int length = 0;
-    uint8_t* data = get_data(&length);
+    Buffer data = get_data();
 
-    printf("C++: After calling get_data, data length is %d\n", length);
+    printf("C++: After calling get_data, data length is %d\n", data.size());
 
     // Process the data
-    for (int i = 0; i < length; ++i) {
+    for (int i = 0; i < data.size(); ++i) {
         printf("C++: Data[%d] = %d\n", i, data[i]);
     }
-
-    // Free the allocated memory
-    free(data);
 
     return 0;
 }
