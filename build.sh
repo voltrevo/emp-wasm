@@ -8,4 +8,4 @@ clang++ \
     -L $(brew --prefix openssl)/lib \
     -lcrypto \
     -lssl \
-    -o 2pc
+    -o bin/2pc

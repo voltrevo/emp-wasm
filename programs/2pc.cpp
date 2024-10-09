@@ -32,7 +32,7 @@ using namespace emp;
 inline const char* hex_char_to_bin(char c);
 inline std::string hex_to_binary(std::string hex);
 
-const string circuit_file_location = macro_xstr(EMP_CIRCUIT_PATH);
+const string circuit_file_location = "circuits/sha-1.txt";
 static char out3[] = "92b404e556588ced6c1acd4ebf053f6809f73a93";//bafbc2c87c33322603f38e06c3e0f79c1f1b1475";
 
 int main(int argc, char** argv) {
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
 
 	NetIO* io = new NetIO(party==ALICE ? nullptr:IP, port);
 	io->set_nodelay();
-	string file = circuit_file_location+"/sha-1.txt";
+	string file = circuit_file_location;
 
 	BristolFormat cf(file.c_str());
 	auto t1 = clock_start();
