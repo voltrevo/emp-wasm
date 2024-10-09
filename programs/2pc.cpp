@@ -31,6 +31,7 @@ using namespace emp;
 
 inline const char* hex_char_to_bin(char c);
 inline std::string hex_to_binary(std::string hex);
+inline std::string binary_to_hex(const std::string& bin);
 
 const string circuit_file_location = "circuits/sha-1.txt";
 static char out3[] = "92b404e556588ced6c1acd4ebf053f6809f73a93";//bafbc2c87c33322603f38e06c3e0f79c1f1b1475";
@@ -77,15 +78,17 @@ int main(int argc, char** argv) {
 		for(int i = 0; i < 160; ++i)
 			res += (out[i]?"1":"0");
 	//	cout << hex_to_binary(string(out3))<<endl;
-	//	cout << res<<endl;
-		cout << (res == hex_to_binary(string(out3))? "GOOD!":"BAD!")<<endl;
+		cout << res<<endl;
+		cout << binary_to_hex(res)<<endl;
+		cout << out3<<endl;
+		cout << (binary_to_hex(res) == string(out3)? "GOOD!":"BAD!")<<endl;
 	}
 	delete io;
 	return 0;
 }
 
 inline const char* hex_char_to_bin(char c) {
-	switch(toupper(c)) {
+	switch(tolower(c)) {
 		case '0': return "0000";
 		case '1': return "0001";
 		case '2': return "0010";
@@ -96,12 +99,12 @@ inline const char* hex_char_to_bin(char c) {
 		case '7': return "0111";
 		case '8': return "1000";
 		case '9': return "1001";
-		case 'A': return "1010";
-		case 'B': return "1011";
-		case 'C': return "1100";
-		case 'D': return "1101";
-		case 'E': return "1110";
-		case 'F': return "1111";
+		case 'a': return "1010";
+		case 'b': return "1011";
+		case 'c': return "1100";
+		case 'd': return "1101";
+		case 'e': return "1110";
+		case 'f': return "1111";
 		default: return "0";
 	}
 }
@@ -111,4 +114,34 @@ inline std::string hex_to_binary(std::string hex) {
 	for(unsigned i = 0; i != hex.length(); ++i)
 		bin += hex_char_to_bin(hex[i]);
 	return bin;
+}
+
+inline std::string binary_to_hex(const std::string& bin) {
+	if (bin.length() % 4 != 0) {
+		throw std::invalid_argument("Binary string length must be a multiple of 4");
+	}
+
+	std::string hex;
+	for (std::size_t i = 0; i < bin.length(); i += 4) {
+		std::string chunk = bin.substr(i, 4);
+		if (chunk == "0000") hex += '0';
+		else if (chunk == "0001") hex += '1';
+		else if (chunk == "0010") hex += '2';
+		else if (chunk == "0011") hex += '3';
+		else if (chunk == "0100") hex += '4';
+		else if (chunk == "0101") hex += '5';
+		else if (chunk == "0110") hex += '6';
+		else if (chunk == "0111") hex += '7';
+		else if (chunk == "1000") hex += '8';
+		else if (chunk == "1001") hex += '9';
+		else if (chunk == "1010") hex += 'a';
+		else if (chunk == "1011") hex += 'b';
+		else if (chunk == "1100") hex += 'c';
+		else if (chunk == "1101") hex += 'd';
+		else if (chunk == "1110") hex += 'e';
+		else if (chunk == "1111") hex += 'f';
+		else throw std::invalid_argument("Invalid binary chunk");
+	}
+
+	return hex;
 }
