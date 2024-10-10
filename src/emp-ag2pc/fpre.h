@@ -12,6 +12,7 @@ namespace emp {
 
 class Fpre {
 	public:
+		IOChannel io;
 		int batch_size = 0, bucket_size = 0, size = 0;
 		int party;
 		block * keys = nullptr;
@@ -19,9 +20,7 @@ class Fpre {
 		PRG prg;
 		PRP prp;
 		PRP *prps;
-		std::vector<IOChannel> io;
-		std::vector<IOChannel> io2;
-		LeakyDeltaOT *abit1[1], *abit2[1];
+		LeakyDeltaOT *abit1, *abit2;
 		block Delta;
 		block ZDelta;
 		block one;
@@ -29,48 +28,44 @@ class Fpre {
 		block * MAC = nullptr, *KEY = nullptr;
 		block * MAC_res = nullptr, *KEY_res = nullptr;
 		block * pretable = nullptr;
-		Fpre(IOChannel in_io, int in_party, int bsize = 1000) {
+		Fpre(IOChannel io, int in_party, int bsize = 1000): io(io) {
 			prps = new PRP[2];
 			this->party = in_party;
 
-			usleep(1000);
-			io.push_back(in_io.open_another());
-			usleep(1000);
-			io2.push_back(in_io.open_another());
-			eq[0] = new Feq(io[0], party);
-			eq[1] = new Feq(io2[0], party);
+			eq[0] = new Feq(io, party);
+			eq[1] = new Feq(io, party);
 
-			abit1[0] = new LeakyDeltaOT(io[0]);
-			abit2[0] = new LeakyDeltaOT(io2[0]);
+			abit1 = new LeakyDeltaOT(io);
+			abit2 = new LeakyDeltaOT(io);
 
 			bool tmp_s[128];
 			prg.random_bool(tmp_s, 128);
 			tmp_s[0] = true;
 			if(party == ALICE) {
 				tmp_s[1] = true;
-				abit1[0]->setup_send(tmp_s);
-				io[0].flush();
-				abit2[0]->setup_recv();
+				abit1->setup_send(tmp_s);
+				io.flush();
+				abit2->setup_recv();
 			} else {
 				tmp_s[1] = false;
-				abit1[0]->setup_recv();
-				io[0].flush();
-				abit2[0]->setup_send(tmp_s);
+				abit1->setup_recv();
+				io.flush();
+				abit2->setup_send(tmp_s);
 			}
-			io2[0].flush();
+			io.flush();
 
-			abit1[0] = new LeakyDeltaOT(io[0]);
-			abit2[0] = new LeakyDeltaOT(io2[0]);
+			abit1 = new LeakyDeltaOT(io);
+			abit2 = new LeakyDeltaOT(io);
 			if(party == ALICE) { 
-				abit1[0]->setup_send(tmp_s, abit1[0]->k0);
-				abit2[0]->setup_recv(abit2[0]->k0, abit2[0]->k1);
+				abit1->setup_send(tmp_s, abit1->k0);
+				abit2->setup_recv(abit2->k0, abit2->k1);
 			} else {
-				abit2[0]->setup_send(tmp_s, abit2[0]->k0);
-				abit1[0]->setup_recv(abit1[0]->k0, abit1[0]->k1);
+				abit2->setup_send(tmp_s, abit2->k0);
+				abit1->setup_recv(abit1->k0, abit1->k1);
 			}
 
-			if(party == ALICE) Delta = abit1[0]->Delta;
-			else Delta = abit2[0]->Delta;
+			if(party == ALICE) Delta = abit1->Delta;
+			else Delta = abit2->Delta;
 			one = makeBlock(0, 1);
 			ZDelta =  Delta  & makeBlock(0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFE);
 			set_batch_size(bsize);
@@ -105,8 +100,8 @@ class Fpre {
 			delete[] KEY_res;
 			delete[] prps;
 
-			delete abit1[0];
-			delete abit2[0];
+			delete abit1;
+			delete abit2;
 			delete eq[0];
 			delete eq[1];
 		}
@@ -116,7 +111,7 @@ class Fpre {
 			int start = 0;
 			int length = batch_size;
 
-			generate(MAC + start * bucket_size*3, KEY + start * bucket_size*3, length * bucket_size, 0);
+			generate(MAC + start * bucket_size*3, KEY + start * bucket_size*3, length * bucket_size);
 
 			if(party == ALICE) {
 				cout <<"ABIT\t"<<time_from(start_time)<<"\n";
@@ -136,7 +131,7 @@ class Fpre {
 #ifdef __debug
 			check_correctness(MAC, KEY, batch_size);
 #endif
-			block S = coin_tossing(prg, io[0], party);
+			block S = coin_tossing(prg, io, party);
 			if(bucket_size > 4) {
 				combine(S, 0, MAC, KEY, batch_size, bucket_size, MAC_res, KEY_res);
 			} else {
@@ -164,22 +159,20 @@ class Fpre {
 			}
 		}
 
-		void generate(block * MAC, block * KEY, int length, int I) {
+		void generate(block * MAC, block * KEY, int length) {
 			if (party == ALICE) {
-				abit1[I]->send_dot(KEY, length*3);
-				abit2[I]->recv_dot(MAC, length*3);
+				abit1->send_dot(KEY, length*3);
+				abit2->recv_dot(MAC, length*3);
 			} else {
 				// TODO: I (Andrew) swapped the two lines below to remove a
 				// deadlock after I removed threading. I suspect that's fine
 				// but I need to check.
-				abit1[I]->recv_dot(MAC, length*3);
-				abit2[I]->send_dot(KEY, length*3);
+				abit1->recv_dot(MAC, length*3);
+				abit2->send_dot(KEY, length*3);
 			}
 		}
 		
 		void check(block * MAC, block * KEY, int length, int I) {
-			IOChannel& local_io = (I%2==0) ? io[I/2]: io2[I/2];
-
 			block * G = new block[length];
 			block * C = new block[length];
 			block * GR = new block[length];
@@ -193,13 +186,13 @@ class Fpre {
 				G[i] = G[i] ^ C[i];
 			}
 			if(party == ALICE) {
-				local_io.send_data(G, sizeof(block)*length);
-				local_io.recv_data(GR, sizeof(block)*length);
+				io.send_data(G, sizeof(block)*length);
+				io.recv_data(GR, sizeof(block)*length);
 			} else {
-				local_io.recv_data(GR, sizeof(block)*length);
-				local_io.send_data(G, sizeof(block)*length);
+				io.recv_data(GR, sizeof(block)*length);
+				io.send_data(G, sizeof(block)*length);
 			}
-			local_io.flush();
+			io.flush();
 			for(int i = 0; i < length; ++i) {
 				block S = H2(MAC[3*i], KEY[3*i], I);
 				S = S ^ MAC[3*i+2] ^ KEY[3*i+2];
@@ -209,13 +202,13 @@ class Fpre {
 			}
 
 			if(party == ALICE) {
-				local_io.send_bool(d, length);
-				local_io.recv_bool(dR,length);
+				io.send_bool(d, length);
+				io.recv_bool(dR,length);
 			} else {
-				local_io.recv_bool(dR, length);
-				local_io.send_bool(d, length);
+				io.recv_bool(dR, length);
+				io.send_bool(d, length);
 			}
-			local_io.flush();
+			io.flush();
 			for(int i = 0; i < length; ++i) {
 				d[i] = d[i] != dR[i];
 				if (d[i]) {
@@ -281,13 +274,13 @@ class Fpre {
 				}
 			}
 			if(party == ALICE) {
-				io[I].send_bool(data, length*bucket_size);
-				io[I].recv_bool(data2, length*bucket_size);
+				io.send_bool(data, length*bucket_size);
+				io.recv_bool(data2, length*bucket_size);
 			} else {
-				io[I].recv_bool(data2, length*bucket_size);
-				io[I].send_bool(data, length*bucket_size);
+				io.recv_bool(data2, length*bucket_size);
+				io.send_bool(data, length*bucket_size);
 			}
-			io[I].flush();
+			io.flush();
 			for(int i = 0; i < length; ++i) {
 				for(int j = 1; j < bucket_size; ++j) {
 					data[i*bucket_size+j] = (data[i*bucket_size+j] != data2[i*bucket_size+j]);
@@ -322,14 +315,16 @@ class Fpre {
 			if (party == ALICE) {
 				for(int i = 0; i < length*3; ++i) {
 					bool tmp = getLSB(MAC[i]);
-					io[0].send_data(&tmp, 1);
+					io.send_data(&tmp, 1);
 				}
-				io[0].send_block(&Delta, 1);
-				io[0].send_block(KEY, length*3);
-				block DD;io[0].recv_block(&DD, 1);
+				io.send_block(&Delta, 1);
+				io.send_block(KEY, length*3);
+				block DD;
+				io.recv_block(&DD, 1);
 
 				for(int i = 0; i < length*3; ++i) {
-					block tmp;io[0].recv_block(&tmp, 1);
+					block tmp;
+					io.recv_block(&tmp, 1);
 					if(getLSB(MAC[i])) tmp = tmp ^ DD;
 					if (!cmpBlock(&tmp, &MAC[i], 1))
 						cout <<i<<"\tWRONG ABIT2!\n";
@@ -338,25 +333,27 @@ class Fpre {
 			} else {
 				bool tmp[3];
 				for(int i = 0; i < length; ++i) {
-					io[0].recv_data(tmp, 3);
+					io.recv_data(tmp, 3);
 					bool res = ((tmp[0] != getLSB(MAC[3*i]) ) && (tmp[1] != getLSB(MAC[3*i+1])));
 					if(res != (tmp[2] != getLSB(MAC[3*i+2])) ) {
 						cout <<i<<"\tWRONG!\t";
 					}
 				}
-				block DD;io[0].recv_block(&DD, 1);
+				block DD;
+				io.recv_block(&DD, 1);
 
 				for(int i = 0; i < length*3; ++i) {
-					block tmp;io[0].recv_block(&tmp, 1);
+					block tmp;
+					io.recv_block(&tmp, 1);
 					if(getLSB(MAC[i])) tmp = tmp ^ DD;
 					if (!cmpBlock(&tmp, &MAC[i], 1))
 						cout <<i<<"\tWRONG ABIT2!\n";
 				}
 
-				io[0].send_block(&Delta, 1);
-				io[0].send_block(KEY, length*3);
+				io.send_block(&Delta, 1);
+				io.send_block(KEY, length*3);
 			}
-			io[0].flush();
+			io.flush();
 		}
 };
 }

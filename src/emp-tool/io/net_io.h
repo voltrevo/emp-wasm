@@ -86,10 +86,6 @@ public:
 		std::cout << "connected\n";
 	}
 
-	std::unique_ptr<IRawIO> open_another() {
-		return std::make_unique<NetIO>(is_server ? nullptr : addr.c_str(), port);
-	}
-
 	void sync() {
 		int tmp = 0;
 		if(is_server) {

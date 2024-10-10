@@ -94,11 +94,11 @@ public:
 		ANDS_key = fpre->KEY_res;
 
 		if(fpre->party == ALICE) {
-			fpre->abit1[0]->send_dot(preprocess_key, total_pre);
-			fpre->abit2[0]->recv_dot(preprocess_mac, total_pre);
+			fpre->abit1->send_dot(preprocess_key, total_pre);
+			fpre->abit2->recv_dot(preprocess_mac, total_pre);
 		} else {
-			fpre->abit1[0]->recv_dot(preprocess_mac,  total_pre);
-			fpre->abit2[0]->send_dot(preprocess_key, total_pre);
+			fpre->abit1->recv_dot(preprocess_mac,  total_pre);
+			fpre->abit2->send_dot(preprocess_key, total_pre);
 		}
 		memcpy(key, preprocess_key, (cf->n1+cf->n2)*sizeof(block));
 		memcpy(mac, preprocess_mac, (cf->n1+cf->n2)*sizeof(block));

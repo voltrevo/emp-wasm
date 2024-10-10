@@ -16,10 +16,6 @@ private:
 public:
 	IOChannel(std::shared_ptr<IRawIO> raw_io): raw_io(raw_io) {}
 
-	IOChannel open_another() {
-		return IOChannel(raw_io->open_another());
-	}
-
 	void send_data(const void * data, size_t nbyte) {
 		*counter += nbyte;
 		raw_io->send(data, nbyte);
