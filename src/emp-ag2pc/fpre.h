@@ -11,7 +11,6 @@
 namespace emp {
 //#define __debug
 
-template<typename T>
 class Fpre {
 	public:
 		ThreadPool *pool;
@@ -23,39 +22,31 @@ class Fpre {
 		PRG prg;
 		PRP prp;
 		PRP *prps;
-		T *io[THDS];
-		T *io2[THDS];
-		int bandwidth() {
-			int sum = 0;
-			for(int i = 0; i < THDS; ++i) {
-				sum+=io[i]->counter;
-				sum+=io2[i]->counter;
-			}
-			return sum;
-		}
-		LeakyDeltaOT<T> *abit1[THDS], *abit2[THDS];
+		std::vector<IOChannel> io;
+		std::vector<IOChannel> io2;
+		LeakyDeltaOT *abit1[THDS], *abit2[THDS];
 		block Delta;
 		block ZDelta;
 		block one;
-		Feq<T> *eq[THDS*2];
+		Feq *eq[THDS*2];
 		block * MAC = nullptr, *KEY = nullptr;
 		block * MAC_res = nullptr, *KEY_res = nullptr;
 		block * pretable = nullptr;
-		Fpre(T * in_io, int in_party, int bsize = 1000) {
+		Fpre(IOChannel in_io, int in_party, int bsize = 1000) {
 			pool = new ThreadPool(THDS*2);
 			prps = new PRP[THDS*2];
 			this->party = in_party;
 			for(int i = 0; i < THDS; ++i) {
 				usleep(1000);
-				io[i] = new T(in_io->is_server?nullptr:in_io->addr.c_str(), in_io->port, true);
+				io.push_back(in_io.open_another());
 				usleep(1000);
-				io2[i] = new T(in_io->is_server?nullptr:in_io->addr.c_str(), in_io->port, true);
-				eq[i] = new Feq<T>(io[i], party);
-				eq[THDS+i] = new Feq<T>(io2[i], party);
+				io2.push_back(in_io.open_another());
+				eq[i] = new Feq(io[i], party);
+				eq[THDS+i] = new Feq(io2[i], party);
 			}
 
-			abit1[0] = new LeakyDeltaOT<T>(io[0]);
-			abit2[0] = new LeakyDeltaOT<T>(io2[0]);
+			abit1[0] = new LeakyDeltaOT(io[0]);
+			abit2[0] = new LeakyDeltaOT(io2[0]);
 
 			bool tmp_s[128];
 			prg.random_bool(tmp_s, 128);
@@ -63,18 +54,18 @@ class Fpre {
 			if(party == ALICE) {
 				tmp_s[1] = true;
 				abit1[0]->setup_send(tmp_s);
-				io[0]->flush();
+				io[0].flush();
 				abit2[0]->setup_recv();
 			} else {
 				tmp_s[1] = false;
 				abit1[0]->setup_recv();
-				io[0]->flush();
+				io[0].flush();
 				abit2[0]->setup_send(tmp_s);
 			}
-			io2[0]->flush();
+			io2[0].flush();
 			for(int i = 1; i < THDS; ++i) {
-				abit1[i] = new LeakyDeltaOT<T>(io[i]);
-				abit2[i] = new LeakyDeltaOT<T>(io2[i]);
+				abit1[i] = new LeakyDeltaOT(io[i]);
+				abit2[i] = new LeakyDeltaOT(io2[i]);
 				if(party == ALICE) { 
 					abit1[i]->setup_send(tmp_s, abit1[0]->k0);
 					abit2[i]->setup_recv(abit2[0]->k0, abit2[0]->k1);
@@ -116,7 +107,7 @@ class Fpre {
 		~Fpre() {
 
 			delete[] MAC;
-		        delete[] KEY;
+			delete[] KEY;
 			delete[] MAC_res;
 			delete[] KEY_res;
 			delete[] prps;
@@ -124,10 +115,8 @@ class Fpre {
 			for(int i = 0; i < THDS; ++i) {
 				delete abit1[i];
 				delete abit2[i];
-				delete io[i];
-				delete io2[i];
 				delete eq[i];
-                                delete eq[THDS + i];
+				delete eq[THDS + i];
 			}
 		}
 		void refill() {
@@ -213,7 +202,7 @@ class Fpre {
 		}
 		
 		void check(block * MAC, block * KEY, int length, int I) {
-			T * local_io = (I%2==0) ? io[I/2]: io2[I/2];
+			IOChannel& local_io = (I%2==0) ? io[I/2]: io2[I/2];
 
 			block * G = new block[length];
 			block * C = new block[length];
@@ -228,13 +217,13 @@ class Fpre {
 				G[i] = G[i] ^ C[i];
 			}
 			if(party == ALICE) {
-				local_io->send_data(G, sizeof(block)*length);
-				local_io->recv_data(GR, sizeof(block)*length);
+				local_io.send_data(G, sizeof(block)*length);
+				local_io.recv_data(GR, sizeof(block)*length);
 			} else {
-				local_io->recv_data(GR, sizeof(block)*length);
-				local_io->send_data(G, sizeof(block)*length);
+				local_io.recv_data(GR, sizeof(block)*length);
+				local_io.send_data(G, sizeof(block)*length);
 			}
-			local_io->flush();
+			local_io.flush();
 			for(int i = 0; i < length; ++i) {
 				block S = H2(MAC[3*i], KEY[3*i], I);
 				S = S ^ MAC[3*i+2] ^ KEY[3*i+2];
@@ -244,13 +233,13 @@ class Fpre {
 			}
 
 			if(party == ALICE) {
-				local_io->send_bool(d, length);
-				local_io->recv_bool(dR,length);
+				local_io.send_bool(d, length);
+				local_io.recv_bool(dR,length);
 			} else {
-				local_io->recv_bool(dR, length);
-				local_io->send_bool(d, length);
+				local_io.recv_bool(dR, length);
+				local_io.send_bool(d, length);
 			}
-			local_io->flush();
+			local_io.flush();
 			for(int i = 0; i < length; ++i) {
 				d[i] = d[i] != dR[i];
 				if (d[i]) {
@@ -316,13 +305,13 @@ class Fpre {
 				}
 			}
 			if(party == ALICE) {
-				io[I]->send_bool(data, length*bucket_size);
-				io[I]->recv_bool(data2, length*bucket_size);
+				io[I].send_bool(data, length*bucket_size);
+				io[I].recv_bool(data2, length*bucket_size);
 			} else {
-				io[I]->recv_bool(data2, length*bucket_size);
-				io[I]->send_bool(data, length*bucket_size);
+				io[I].recv_bool(data2, length*bucket_size);
+				io[I].send_bool(data, length*bucket_size);
 			}
-			io[I]->flush();
+			io[I].flush();
 			for(int i = 0; i < length; ++i) {
 				for(int j = 1; j < bucket_size; ++j) {
 					data[i*bucket_size+j] = (data[i*bucket_size+j] != data2[i*bucket_size+j]);
@@ -357,14 +346,14 @@ class Fpre {
 			if (party == ALICE) {
 				for(int i = 0; i < length*3; ++i) {
 					bool tmp = getLSB(MAC[i]);
-					io[0]->send_data(&tmp, 1);
+					io[0].send_data(&tmp, 1);
 				}
-				io[0]->send_block(&Delta, 1);
-				io[0]->send_block(KEY, length*3);
-				block DD;io[0]->recv_block(&DD, 1);
+				io[0].send_block(&Delta, 1);
+				io[0].send_block(KEY, length*3);
+				block DD;io[0].recv_block(&DD, 1);
 
 				for(int i = 0; i < length*3; ++i) {
-					block tmp;io[0]->recv_block(&tmp, 1);
+					block tmp;io[0].recv_block(&tmp, 1);
 					if(getLSB(MAC[i])) tmp = tmp ^ DD;
 					if (!cmpBlock(&tmp, &MAC[i], 1))
 						cout <<i<<"\tWRONG ABIT2!\n";
@@ -373,25 +362,25 @@ class Fpre {
 			} else {
 				bool tmp[3];
 				for(int i = 0; i < length; ++i) {
-					io[0]->recv_data(tmp, 3);
+					io[0].recv_data(tmp, 3);
 					bool res = ((tmp[0] != getLSB(MAC[3*i]) ) && (tmp[1] != getLSB(MAC[3*i+1])));
 					if(res != (tmp[2] != getLSB(MAC[3*i+2])) ) {
 						cout <<i<<"\tWRONG!\t";
 					}
 				}
-				block DD;io[0]->recv_block(&DD, 1);
+				block DD;io[0].recv_block(&DD, 1);
 
 				for(int i = 0; i < length*3; ++i) {
-					block tmp;io[0]->recv_block(&tmp, 1);
+					block tmp;io[0].recv_block(&tmp, 1);
 					if(getLSB(MAC[i])) tmp = tmp ^ DD;
 					if (!cmpBlock(&tmp, &MAC[i], 1))
 						cout <<i<<"\tWRONG ABIT2!\n";
 				}
 
-				io[0]->send_block(&Delta, 1);
-				io[0]->send_block(KEY, length*3);
+				io[0].send_block(&Delta, 1);
+				io[0].send_block(KEY, length*3);
 			}
-			io[0]->flush();
+			io[0].flush();
 		}
 };
 }

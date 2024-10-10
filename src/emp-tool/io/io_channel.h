@@ -7,16 +7,30 @@
 #include <cassert>  
 
 namespace emp {
-template<typename T> 
-class IOChannel { public:
-	uint64_t counter = 0;
+
+class IOChannel {
+private:
+	std::shared_ptr<IRawIO> raw_io;
+	std::shared_ptr<uint64_t> counter = std::make_shared<uint64_t>(0);
+
+public:
+	IOChannel(std::shared_ptr<IRawIO> raw_io): raw_io(raw_io) {}
+
+	IOChannel open_another() {
+		return IOChannel(raw_io->open_another());
+	}
+
 	void send_data(const void * data, size_t nbyte) {
-		counter +=nbyte;
-		derived().send_data_internal(data, nbyte);
+		*counter += nbyte;
+		raw_io->send(data, nbyte);
 	}
 
 	void recv_data(void * data, size_t nbyte) {
-		derived().recv_data_internal(data, nbyte);
+		raw_io->recv(data, nbyte);
+	}
+
+	void flush() {
+		raw_io->flush();
 	}
 
 	void send_block(const block* data, size_t nblock) {
@@ -123,12 +137,6 @@ class IOChannel { public:
 		}
 		if (8*i != length)
 			recv_data(data + 8*i, length - 8*i);
-	}
-
-
-	private:
-	T& derived() {
-		return *static_cast<T*>(this);
 	}
 };
 }

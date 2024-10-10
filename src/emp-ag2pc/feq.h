@@ -4,13 +4,11 @@
 
 namespace emp {
 
-template<typename T>
 class Feq { public:
 	Hash h;
-	T* io = nullptr;
+	IOChannel io;
 	int party;
-	Feq(T* io, int party) {
-		this->io = io;
+	Feq(IOChannel io, int party): io(io) {
 		this->party = party;
 	}
 	void add_block(const block & in) {
@@ -32,16 +30,16 @@ class Feq { public:
 			PRG prg;
 			prg.random_data(AR+Hash::DIGEST_SIZE, 16);
 			Hash::hash_once(dgst, AR, Hash::DIGEST_SIZE+16);
-			io->send_data(dgst, Hash::DIGEST_SIZE);
-			io->recv_data(dgst, Hash::DIGEST_SIZE);
-			io->send_data(AR+Hash::DIGEST_SIZE, 16);
+			io.send_data(dgst, Hash::DIGEST_SIZE);
+			io.recv_data(dgst, Hash::DIGEST_SIZE);
+			io.send_data(AR+Hash::DIGEST_SIZE, 16);
 		} else {
-			io->recv_data(dgst, Hash::DIGEST_SIZE);
-			io->send_data(AR, Hash::DIGEST_SIZE);
-			io->recv_data(AR+Hash::DIGEST_SIZE, 16);
+			io.recv_data(dgst, Hash::DIGEST_SIZE);
+			io.send_data(AR, Hash::DIGEST_SIZE);
+			io.recv_data(AR+Hash::DIGEST_SIZE, 16);
 			Hash::hash_once(AR, AR, Hash::DIGEST_SIZE+16);
 		}
-		io->flush();
+		io.flush();
 		return memcmp(dgst, AR, Hash::DIGEST_SIZE)==0;
 	}
 };

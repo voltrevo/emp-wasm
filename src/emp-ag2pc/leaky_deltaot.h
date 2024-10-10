@@ -9,14 +9,13 @@ namespace emp {
 	#endif
 #endif
 
-template<typename T>
-class LeakyDeltaOT: public IKNP<T> { public:
-	LeakyDeltaOT(T * io): IKNP<T>(io, false){
-	}
+class LeakyDeltaOT: public IKNP {
+public:
+	LeakyDeltaOT(IOChannel io): IKNP(io, false) {}
 	
 	void send_dot(block * data, int length) {
 		this->send_cot(data, length);
-		this->io->flush();
+		this->io.flush();
 		block one = makeBlock(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFE);
 		for (int i = 0; i < length; ++i) {
 			data[i] = data[i] & one;
@@ -26,7 +25,7 @@ class LeakyDeltaOT: public IKNP<T> { public:
 		bool * b = new bool[length];
 		this->prg.random_bool(b, length);
 		this->recv_cot(data, b, length);
-		this->io->flush();
+		this->io.flush();
 
 		block ch[2];
 		ch[0] = zero_block;

@@ -15,12 +15,11 @@ namespace emp {
  * [REF] With optimization of "Better Concrete Security for Half-Gates Garbling (in the Multi-Instance Setting)"
  * https://eprint.iacr.org/2019/1168.pdf
  */
-template<typename T>
-class IKNP: public COT<T> { public:
-	using COT<T>::io;
-	using COT<T>::Delta;
+class IKNP: public COT { public:
+	using COT::io;
+	using COT::Delta;
 
-	OTCO<T> * base_ot = nullptr;
+	OTCO * base_ot = nullptr;
 	bool setup = false, *extended_r = nullptr;
 
 	const static int64_t block_size = 1024*2;
@@ -29,9 +28,7 @@ class IKNP: public COT<T> { public:
 	PRG prg, G0[128], G1[128];
 	bool malicious = false;
 	block k0[128], k1[128]; 
-	IKNP(T * io, bool malicious = false): malicious(malicious) {
-		this->io = io;
-	}
+	IKNP(IOChannel io, bool malicious = false): COT(io), malicious(malicious) {}
 	~IKNP() {
 		delete_array_null(extended_r);
 	}
@@ -46,7 +43,7 @@ class IKNP: public COT<T> { public:
 		if(in_k0 != nullptr) {
 			memcpy(k0, in_k0, 128*sizeof(block));
 		} else {
-			this->base_ot = new OTCO<T>(io);
+			this->base_ot = new OTCO(io);
 			base_ot->recv(k0, s, 128);
 			delete base_ot;
 		}
@@ -62,7 +59,7 @@ class IKNP: public COT<T> { public:
 			memcpy(k0, in_k0, 128*sizeof(block));
 			memcpy(k1, in_k1, 128*sizeof(block));
 		} else {
-			this->base_ot = new OTCO<T>(io);
+			this->base_ot = new OTCO(io);
 			prg.random_block(k0, 128);
 			prg.random_block(k1, 128);
 			base_ot->send(k0, k1, 128);
@@ -92,7 +89,7 @@ class IKNP: public COT<T> { public:
 		block t[block_size];
 		block tmp[block_size];
 		int64_t local_block_size = (len+127)/128*128;
-		io->recv_block(tmp, local_block_size);
+		io.recv_block(tmp, local_block_size);
 		for(int64_t i = 0; i < 128; ++i) {
 			G0[i].random_data(t+(i*block_size/128), local_block_size/8);
 			if (s[i])
@@ -142,7 +139,7 @@ class IKNP: public COT<T> { public:
 			G1[i].random_data(tmp, local_block_size/8);
 			xorBlocks_arr(tmp, t+(i*block_size/128), tmp, local_block_size/128);
 			xorBlocks_arr(tmp, r, tmp, local_block_size/128);
-			io->send_data(tmp, local_block_size/8);
+			io.send_data(tmp, local_block_size/8);
 		}
 
 		sse_trans((uint8_t *)(out), (uint8_t*)t, 128, block_size);
@@ -170,8 +167,8 @@ class IKNP: public COT<T> { public:
 		block seed2, x, t[2], q[2], tmp[2];
 		block chi[block_size];
 		q[0] = q[1] = makeBlock(0, 0);
-		io->recv_block(&seed2, 1);
-		io->flush();
+		io.recv_block(&seed2, 1);
+		io.flush();
 		PRG chiPRG(&seed2);
 
 		for(int64_t i = 0; i < length/block_size; ++i) {
@@ -194,8 +191,8 @@ class IKNP: public COT<T> { public:
 			q[1] = q[1] ^ tmp[1];
 		}
 
-		io->recv_block(&x, 1);
-		io->recv_block(t, 2);
+		io.recv_block(&x, 1);
+		io.recv_block(t, 2);
 		mul128(x, Delta, tmp, tmp+1);
 		q[0] = q[0] ^ tmp[0];
 		q[1] = q[1] ^ tmp[1];
@@ -206,8 +203,8 @@ class IKNP: public COT<T> { public:
 		block select[2] = {zero_block, all_one_block};
 		block seed2, x = makeBlock(0,0), t[2], tmp[2];
 		prg.random_block(&seed2,1);
-		io->send_block(&seed2, 1);
-		io->flush();
+		io.send_block(&seed2, 1);
+		io.flush();
 		block chi[block_size];
 		t[0] = t[1] = makeBlock(0, 0);
 		PRG chiPRG(&seed2);
@@ -239,8 +236,8 @@ class IKNP: public COT<T> { public:
 				x = x ^ (chi[j] & select[local_r[j]]);
 		}
 
-		io->send_block(&x, 1);
-		io->send_block(t, 2);
+		io.send_block(&x, 1);
+		io.send_block(t, 2);
 	}
 };
 

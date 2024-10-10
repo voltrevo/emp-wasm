@@ -42,22 +42,25 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
 
-    NetIO* io = new NetIO(party == ALICE ? nullptr : IP, port);
+    auto net_io = std::make_shared<NetIO>(party == ALICE ? nullptr : IP, port);
+
+	IOChannel io(net_io);
+
     string file = circuit_file_location;
 
     BristolFormat cf(file.c_str());
     auto t1 = clock_start();
     C2PC twopc(io, party, &cf);
-    io->flush();
+    io.flush();
     cout << "one time:\t" << party << "\t" << time_from(t1) << endl;
     t1 = clock_start();
     twopc.function_independent();
-    io->flush();
+    io.flush();
     cout << "inde:\t" << party << "\t" << time_from(t1) << endl;
 
     t1 = clock_start();
     twopc.function_dependent();
-    io->flush();
+    io.flush();
     cout << "dep:\t" << party << "\t" << time_from(t1) << endl;
 
 	int input_size = party == ALICE ? 0 : 512;
@@ -79,6 +82,7 @@ int main(int argc, char** argv) {
     t1 = clock_start();
     std::vector<bool> out = twopc.online(in);
     cout << "online:\t" << party << "\t" << time_from(t1) << endl;
+
     if (party == BOB) {
         string res = "";
         for (int i = 0; i < out.size(); ++i)
@@ -88,7 +92,7 @@ int main(int argc, char** argv) {
         cout << sha1_empty << endl;
         cout << (binary_to_hex(res) == string(sha1_empty) ? "GOOD!" : "BAD!") << endl;
     }
-    delete io;
+
     return 0;
 }
 

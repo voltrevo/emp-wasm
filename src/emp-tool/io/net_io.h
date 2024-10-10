@@ -1,14 +1,13 @@
-#ifndef EMP_NETWORK_IO_CHANNEL
-#define EMP_NETWORK_IO_CHANNEL
+#ifndef EMP_NET_IO
+#define EMP_NET_IO
 
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
-#include "emp-tool/io/io_channel.h"
+#include "emp-tool/io/i_raw_io.h"
 using std::string;
-
 
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -19,7 +18,8 @@ using std::string;
 
 namespace emp {
 
-class NetIO: public IOChannel<NetIO> { public:
+class NetIO: public IRawIO {
+public:
 	bool is_server;
 	int mysocket = -1;
 	int consocket = -1;
@@ -28,7 +28,7 @@ class NetIO: public IOChannel<NetIO> { public:
 	bool has_sent = false;
 	string addr;
 	int port;
-	NetIO(const char * address, int port, bool quiet = false) {
+	NetIO(const char * address, int port) {
 		if (port <0 || port > 65535) {
 			throw std::runtime_error("Invalid port number!");
 		}
@@ -82,18 +82,22 @@ class NetIO: public IOChannel<NetIO> { public:
 		buffer = new char[NETWORK_BUFFER_SIZE];
 		memset(buffer, 0, NETWORK_BUFFER_SIZE);
 		setvbuf(stream, buffer, _IOFBF, NETWORK_BUFFER_SIZE);
-		if(!quiet)
-			std::cout << "connected\n";
+
+		std::cout << "connected\n";
+	}
+
+	std::unique_ptr<IRawIO> open_another() {
+		return std::make_unique<NetIO>(is_server ? nullptr : addr.c_str(), port);
 	}
 
 	void sync() {
 		int tmp = 0;
 		if(is_server) {
-			send_data_internal(&tmp, 1);
-			recv_data_internal(&tmp, 1);
+			send(&tmp, 1);
+			recv(&tmp, 1);
 		} else {
-			recv_data_internal(&tmp, 1);
-			send_data_internal(&tmp, 1);
+			recv(&tmp, 1);
+			send(&tmp, 1);
 			flush();
 		}
 	}
@@ -118,7 +122,7 @@ class NetIO: public IOChannel<NetIO> { public:
 		fflush(stream);
 	}
 
-	void send_data_internal(const void * data, size_t len) {
+	void send(const void * data, size_t len) {
 		size_t sent = 0;
 		while(sent < len) {
 			size_t res = fwrite(sent + (char*)data, 1, len - sent, stream);
@@ -130,7 +134,7 @@ class NetIO: public IOChannel<NetIO> { public:
 		has_sent = true;
 	}
 
-	void recv_data_internal(void  * data, size_t len) {
+	void recv(void  * data, size_t len) {
 		if(has_sent)
 			fflush(stream);
 		has_sent = false;
@@ -147,4 +151,4 @@ class NetIO: public IOChannel<NetIO> { public:
 
 }
 
-#endif  //NETWORK_IO_CHANNEL
+#endif // EMP_NET_IO

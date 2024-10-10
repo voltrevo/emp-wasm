@@ -27,28 +27,26 @@ inline block halfgates_eval(block A, block B, const block *table, MITCCRH<8> *mi
 	return W;
 }
 
-
-template<typename T>
 class HalfGateEva:public CircuitExecution {
 public:
-	T * io;
+	IOChannel io;
 	block constant[2];
 	MITCCRH<8> mitccrh;
-	HalfGateEva(T * io) :io(io) {
+	HalfGateEva(IOChannel io): io(io) {
 		set_delta();
 		block tmp;
-		io->recv_block(&tmp, 1);
+		io.recv_block(&tmp, 1);
 		mitccrh.setS(tmp);
 	}
 	void set_delta() {
-		io->recv_block(constant, 2);
+		io.recv_block(constant, 2);
 	}
 	block public_label(bool b) override {
 		return constant[b];
 	}
 	block and_gate(const block& a, const block& b) override {
 		block table[2];
-		io->recv_block(table, 2);
+		io.recv_block(table, 2);
 		return halfgates_eval(a, b, table, &mitccrh);
 	}
 	block xor_gate(const block& a, const block& b) override {

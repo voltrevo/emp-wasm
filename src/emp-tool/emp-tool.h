@@ -2,8 +2,9 @@
 using std::min;
 
 #include <thread>
+#include "emp-tool/io/i_raw_io.h"
 #include "emp-tool/io/io_channel.h"
-#include "emp-tool/io/net_io_channel.h"
+#include "emp-tool/io/net_io.h"
 
 #include "emp-tool/circuits/circuit_file.h"
 

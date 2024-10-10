@@ -6,11 +6,12 @@
 #include <vector>
 
 namespace emp {
-template<typename T>
-class C2PC { public:
+
+class C2PC {
+public:
 	const static int SSP = 5;//5*8 in fact...
 	const block MASK = makeBlock(0x0ULL, 0xFFFFFULL);
-	Fpre<T>* fpre = nullptr;
+	Fpre* fpre = nullptr;
 	block * mac = nullptr;
 	block * key = nullptr;
 
@@ -24,15 +25,17 @@ class C2PC { public:
 
 	bool * mask = nullptr;
 	BristolFormat * cf;
-	T * io;
+	IOChannel io;
 	int num_ands = 0;
 	int party, total_pre;
 
 	int input_size;
 
-	C2PC(T * io, int party, BristolFormat * cf) {
+	C2PC(IOChannel io, int party, BristolFormat* cf)
+	:
+		io(io)
+	{
 		this->party = party;
-		this->io = io;
 		this->cf = cf;
 		for(int i = 0; i < cf->num_gate; ++i) {
 			if (cf->gates[4*i+3] == AND_GATE)
@@ -40,7 +43,7 @@ class C2PC { public:
 		}
 		cout << cf->n1<<" "<<cf->n2<<" "<<cf->n3<<" "<<num_ands<<"\n";
 		total_pre = cf->n1 + cf->n2 + num_ands;
-		fpre = new Fpre<T>(io, party, num_ands);
+		fpre = new Fpre(io, party, num_ands);
 
 		key = new block[cf->num_wire];
 		mac = new block[cf->num_wire];
@@ -139,17 +142,17 @@ class C2PC { public:
 			}
 		}
 		if(party == ALICE) {
-			io->send_bool(x1, num_ands);
-			io->send_bool(y1, num_ands);
-			io->recv_bool(x2, num_ands);
-			io->recv_bool(y2, num_ands);
+			io.send_bool(x1, num_ands);
+			io.send_bool(y1, num_ands);
+			io.recv_bool(x2, num_ands);
+			io.recv_bool(y2, num_ands);
 		} else {
-			io->recv_bool(x2, num_ands);
-			io->recv_bool(y2, num_ands);
-			io->send_bool(x1, num_ands);
-			io->send_bool(y1, num_ands);
+			io.recv_bool(x2, num_ands);
+			io.recv_bool(y2, num_ands);
+			io.send_bool(x1, num_ands);
+			io.send_bool(y1, num_ands);
 		}
-		io->flush();
+		io.flush();
 		for(int i = 0; i < num_ands; ++i) {
 			x1[i] = logic_xor(x1[i], x2[i]); 
 			y1[i] = logic_xor(y1[i], y2[i]); 
@@ -218,8 +221,8 @@ class C2PC { public:
 #endif
 					}
 					for(int j = 0; j < 4; ++j ) {
-						send_partial_block<T, SSP>(io, &H[j][0], 1);
-						io->send_block(&H[j][1], 1);
+						send_partial_block<SSP>(io, &H[j][0], 1);
+						io.send_block(&H[j][1], 1);
 					}
 				} else {
 					memcpy(GTK[ands], K, sizeof(block)*4);
@@ -229,8 +232,8 @@ class C2PC { public:
 						check2(M[j], K[j]);
 #endif
 					for(int j = 0; j < 4; ++j ) {
-						recv_partial_block<T, SSP>(io, &GT[ands][j][0], 1);
-						io->recv_block(&GT[ands][j][1], 1);
+						recv_partial_block<SSP>(io, &GT[ands][j][0], 1);
+						io.recv_block(&GT[ands][j][1], 1);
 					}
 				}
 				++ands;
@@ -243,9 +246,9 @@ class C2PC { public:
 
 		block tmp;
 		if(party == ALICE) {
-			send_partial_block<T, SSP>(io, mac, cf->n1);
+			send_partial_block<SSP>(io, mac, cf->n1);
 			for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
-				recv_partial_block<T, SSP>(io, &tmp, 1);
+				recv_partial_block<SSP>(io, &tmp, 1);
 				block ttt = key[i] ^ fpre->Delta;
 				ttt =  ttt & MASK;
 				block mask_key = key[i] & MASK;
@@ -258,7 +261,7 @@ class C2PC { public:
 			}
 		} else {
 			for(int i = 0; i < cf->n1; ++i) {
-				recv_partial_block<T, SSP>(io, &tmp, 1);
+				recv_partial_block<SSP>(io, &tmp, 1);
 				block ttt = key[i] ^ fpre->Delta;
 				ttt =  ttt & MASK;
 				tmp =  tmp & MASK;
@@ -271,9 +274,9 @@ class C2PC { public:
 				else cout <<"no match! BOB\t"<<i<<endl;
 			}
 
-			send_partial_block<T, SSP>(io, mac+cf->n1, cf->n2);
+			send_partial_block<SSP>(io, mac+cf->n1, cf->n2);
 		}
-		io->flush();
+		io.flush();
 	}
 
 	std::vector<bool> online(
@@ -300,23 +303,23 @@ class C2PC { public:
 				mask_input[i] = logic_xor(input[i - cf->n1], getLSB(mac[i]));
 				mask_input[i] = logic_xor(mask_input[i], mask[i]);
 			}
-			io->recv_data(mask_input, cf->n1);
-			io->send_data(mask_input+cf->n1, cf->n2);
+			io.recv_data(mask_input, cf->n1);
+			io.send_data(mask_input+cf->n1, cf->n2);
 			for(int i = 0; i < cf->n1 + cf->n2; ++i) {
 				tmp = labels[i];
 				if(mask_input[i]) tmp = tmp ^ fpre->Delta;
-				io->send_block(&tmp, 1);
+				io.send_block(&tmp, 1);
 			}
 			//send output mask data
-			send_partial_block<T, SSP>(io, mac+cf->num_wire - cf->n3, cf->n3);
+			send_partial_block<SSP>(io, mac+cf->num_wire - cf->n3, cf->n3);
 		} else {
 			for(int i = 0; i < cf->n1; ++i) {
 				mask_input[i] = logic_xor(input[i], getLSB(mac[i]));
 				mask_input[i] = logic_xor(mask_input[i], mask[i]);
 			}
-			io->send_data(mask_input, cf->n1);
-			io->recv_data(mask_input+cf->n1, cf->n2);
-			io->recv_block(labels, cf->n1 + cf->n2);
+			io.send_data(mask_input, cf->n1);
+			io.recv_data(mask_input+cf->n1, cf->n2);
+			io.recv_block(labels, cf->n1 + cf->n2);
 		}
 		int ands = 0;
 		if(party == BOB) {
@@ -355,7 +358,7 @@ class C2PC { public:
 			bool * o = new bool[cf->n3];
 			for(int i = 0; i < cf->n3; ++i) {
 				block tmp;
-				recv_partial_block<T, SSP>(io, &tmp, 1);
+				recv_partial_block<SSP>(io, &tmp, 1);
 				tmp =  tmp & MASK;
 
 				block ttt = key[cf->num_wire - cf-> n3 + i] ^ fpre->Delta;
@@ -374,20 +377,20 @@ class C2PC { public:
 			}
 			delete[] o;
 			if(alice_output) {
-				send_partial_block<T, SSP>(io, mac+cf->num_wire - cf->n3, cf->n3);
-				send_partial_block<T, SSP>(io, labels+cf->num_wire - cf->n3, cf->n3);
-				io->send_data(mask_input + cf->num_wire - cf->n3, cf->n3);
-				io->flush();	
+				send_partial_block<SSP>(io, mac+cf->num_wire - cf->n3, cf->n3);
+				send_partial_block<SSP>(io, labels+cf->num_wire - cf->n3, cf->n3);
+				io.send_data(mask_input + cf->num_wire - cf->n3, cf->n3);
+				io.flush();	
 			}	
 		} else {//ALICE
 			if(alice_output) {
 				block * tmp_mac = new block[cf->n3];
 				block * tmp_label = new block[cf->n3];
 				bool * tmp_mask_input = new bool[cf->n3];
-				recv_partial_block<T, SSP>(io, tmp_mac, cf->n3);
-				recv_partial_block<T, SSP>(io, tmp_label, cf->n3);
-				io->recv_data(tmp_mask_input, cf->n3);
-				io->flush();
+				recv_partial_block<SSP>(io, tmp_mac, cf->n3);
+				recv_partial_block<SSP>(io, tmp_label, cf->n3);
+				io.recv_data(tmp_mask_input, cf->n3);
+				io.flush();
 				for(int i = 0; i < cf->n3; ++i) {
 					block tmp = tmp_mac[i];
 					tmp =  tmp & MASK;
@@ -425,13 +428,13 @@ class C2PC { public:
 
 	void check(block * MAC, block * KEY, bool * r, int length = 1) {
 		if (party == ALICE) {
-			io->send_data(r, length*3);
-			io->send_block(&fpre->Delta, 1);
-			io->send_block(KEY, length*3);
-			block DD;io->recv_block(&DD, 1);
+			io.send_data(r, length*3);
+			io.send_block(&fpre->Delta, 1);
+			io.send_block(KEY, length*3);
+			block DD;io.recv_block(&DD, 1);
 
 			for(int i = 0; i < length*3; ++i) {
-				block tmp;io->recv_block(&tmp, 1);
+				block tmp;io.recv_block(&tmp, 1);
 				if(r[i]) tmp = tmp ^ DD;
 				if (!cmpBlock(&tmp, &MAC[i], 1))
 					cout <<i<<"\tWRONG ABIT!\n";
@@ -440,49 +443,49 @@ class C2PC { public:
 		} else {
 			bool tmp[3];
 			for(int i = 0; i < length; ++i) {
-				io->recv_data(tmp, 3);
+				io.recv_data(tmp, 3);
 				bool res = (logic_xor(tmp[0], r[3*i] )) and (logic_xor(tmp[1], r[3*i+1]));
 				if(res != logic_xor(tmp[2], r[3*i+2]) ) {
 					cout <<i<<"\tWRONG!\n";
 				}
 			}
-			block DD;io->recv_block(&DD, 1);
+			block DD;io.recv_block(&DD, 1);
 
 			for(int i = 0; i < length*3; ++i) {
-				block tmp;io->recv_block(&tmp, 1);
+				block tmp;io.recv_block(&tmp, 1);
 				if(r[i]) tmp = tmp ^ DD;
 				if (!cmpBlock(&tmp, &MAC[i], 1))
 					cout <<i<<"\tWRONG ABIT!\n";
 			}
-			io->send_block(&fpre->Delta, 1);
-			io->send_block(KEY, length*3);
+			io.send_block(&fpre->Delta, 1);
+			io.send_block(KEY, length*3);
 		}
-		io->flush();
+		io.flush();
 	}
 
 	void check2(block & MAC, block & KEY) {
 		if (party == ALICE) {
-			io->send_block(&fpre->Delta, 1);
-			io->send_block(&KEY, 1);
-			block DD;io->recv_block(&DD, 1);
+			io.send_block(&fpre->Delta, 1);
+			io.send_block(&KEY, 1);
+			block DD;io.recv_block(&DD, 1);
 			for(int i = 0; i < 1; ++i) {
-				block tmp;io->recv_block(&tmp, 1);
+				block tmp;io.recv_block(&tmp, 1);
 				if(getLSB(MAC)) tmp = tmp ^ DD;
 				if (!cmpBlock(&tmp, &MAC, 1))
 					cout <<i<<"\tWRONG ABIT!2\n";
 			}
 		} else {
-			block DD;io->recv_block(&DD, 1);
+			block DD;io.recv_block(&DD, 1);
 			for(int i = 0; i < 1; ++i) {
-				block tmp;io->recv_block(&tmp, 1);
+				block tmp;io.recv_block(&tmp, 1);
 				if(getLSB(MAC)) tmp = tmp ^ DD;
 				if (!cmpBlock(&tmp, &MAC, 1))
 					cout <<i<<"\tWRONG ABIT!2\n";
 			}
-			io->send_block(&fpre->Delta, 1);
-			io->send_block(&KEY, 1);
+			io.send_block(&fpre->Delta, 1);
+			io.send_block(&KEY, 1);
 		}
-		io->flush();
+		io.flush();
 	}
 
 	void Hash(block H[4][2], const block & a, const block & b, uint64_t i) {
@@ -518,5 +521,7 @@ class C2PC { public:
 		return a!= b;
 	}
 };
+
 }
-#endif// C2PC_H__
+
+#endif // EMP_AG2PC_2PC_H__
