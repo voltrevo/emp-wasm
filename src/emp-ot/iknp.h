@@ -1,9 +1,10 @@
 #ifndef EMP_IKNP_H__
 #define EMP_IKNP_H__
-#include "emp-ot/cot.h"
 #include "emp-ot/co.h"
 
 namespace emp {
+
+const static int64_t ot_bsize = 8;
 
 /*
  * IKNP OT Extension
@@ -15,9 +16,13 @@ namespace emp {
  * [REF] With optimization of "Better Concrete Security for Half-Gates Garbling (in the Multi-Instance Setting)"
  * https://eprint.iacr.org/2019/1168.pdf
  */
-class IKNP: public COT { public:
-	using COT::io;
-	using COT::Delta;
+class IKNP : public OT {
+public:
+	IOChannel io;
+
+	MITCCRH<ot_bsize> mitccrh;
+	block Delta;
+	PRG cot_prg;
 
 	OTCO * base_ot = nullptr;
 	bool setup = false, *extended_r = nullptr;
@@ -28,7 +33,9 @@ class IKNP: public COT { public:
 	PRG prg, G0[128], G1[128];
 	bool malicious = false;
 	block k0[128], k1[128]; 
-	IKNP(IOChannel io, bool malicious = false): COT(io), malicious(malicious) {}
+
+	IKNP(IOChannel io, bool malicious = false): io(io), malicious(malicious) {}
+
 	~IKNP() {
 		delete_array_null(extended_r);
 	}
@@ -70,6 +77,7 @@ class IKNP: public COT { public:
 			G1[i].reseed(&k1[i]);
 		}
 	}
+
 	void send_pre(block * out, int64_t length) {
 		if(not setup)
 			setup_send();
@@ -130,6 +138,7 @@ class IKNP: public COT { public:
 		}
 		delete[] block_r;
 	}
+
 	void recv_pre_block(block * out, block * r, int64_t len) {
 		block t[block_size];
 		block tmp[block_size];
@@ -145,14 +154,58 @@ class IKNP: public COT { public:
 		sse_trans((uint8_t *)(out), (uint8_t*)t, 128, block_size);
 	}
 
-	void send_cot(block * data, int64_t length) override{
+	void send(const block* data0, const block* data1, int64_t length) override {
+		block * data = new block[length];
+		send_cot(data, length);
+		block s;
+		cot_prg.random_block(&s, 1);
+		io.send_block(&s,1);
+		mitccrh.setS(s);
+		io.flush();
+		block pad[2*ot_bsize];
+		for(int64_t i = 0; i < length; i+=ot_bsize) {
+			for(int64_t j = i; j < min(i+ot_bsize, length); ++j) {
+				pad[2*(j-i)] = data[j];
+				pad[2*(j-i)+1] = data[j] ^ Delta;
+			}
+			mitccrh.hash<ot_bsize, 2>(pad);
+			for(int64_t j = i; j < min(i+ot_bsize, length); ++j) {
+				pad[2*(j-i)] = pad[2*(j-i)] ^ data0[j];
+				pad[2*(j-i)+1] = pad[2*(j-i)+1] ^ data1[j];
+			}
+			io.send_data(pad, 2*sizeof(block)*min(ot_bsize,length-i));
+		}
+		delete[] data;
+	}
+
+	void recv(block* data, const bool* r, int64_t length) override {
+		recv_cot(data, r, length);
+		block s;
+		io.recv_block(&s,1);
+		mitccrh.setS(s);
+		io.flush();
+
+		block res[2*ot_bsize];
+		block pad[ot_bsize];
+		for(int64_t i = 0; i < length; i+=ot_bsize) {
+			memcpy(pad, data+i, min(ot_bsize,length-i)*sizeof(block));
+			mitccrh.hash<ot_bsize, 1>(pad);
+			io.recv_data(res, 2*sizeof(block)*min(ot_bsize,length-i));
+			for(int64_t j = 0; j < ot_bsize and j < length-i; ++j) {
+				data[i+j] = res[2*j+r[i+j]] ^ pad[j];
+			}
+		}
+	}
+
+	void send_cot(block * data, int64_t length) {
 		send_pre(data, length);
 
 		if(malicious)
 			if(!send_check(data, length))
 				error("OT Extension check failed");
 	}
-	void recv_cot(block* data, const bool * b, int64_t length) override {
+
+	void recv_cot(block* data, const bool * b, int64_t length) {
 		recv_pre(data, b, length);
 		if(malicious)
 			recv_check(data, b, length);
