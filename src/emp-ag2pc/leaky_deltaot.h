@@ -11,7 +11,7 @@ namespace emp {
 
 class LeakyDeltaOT: public IKNP {
 public:
-    LeakyDeltaOT(IOChannel io): IKNP(io, false) {}
+    LeakyDeltaOT(IOChannel io): IKNP(io) {}
 
     void send_dot(block * data, int length) {
         this->send_cot(data, length);

@@ -31,10 +31,9 @@ public:
     block local_out[block_size];
     bool s[128], local_r[256];
     PRG prg, G0[128], G1[128];
-    bool malicious = false;
     block k0[128], k1[128];
 
-    IKNP(IOChannel io, bool malicious = false): io(io), malicious(malicious) {}
+    IKNP(IOChannel io): io(io) {}
 
     ~IKNP() {
         delete_array_null(extended_r);
@@ -89,8 +88,8 @@ public:
             send_pre_block(local_out, remain);
             memcpy(out+j*block_size, local_out, sizeof(block)*remain);
         }
-        if(malicious)
-            send_pre_block(local_out, 256);
+
+        send_pre_block(local_out, 256);
     }
 
     void send_pre_block(block * out, int64_t len) {
@@ -129,13 +128,13 @@ public:
             recv_pre_block(local_out, block_r + (j*block_size/128), remain);
             memcpy(out+j*block_size, local_out, sizeof(block)*remain);
         }
-        if(malicious) {
-            block local_r_block[2];
-            prg.random_bool(local_r, 256);
-            local_r_block[0] = bool_to_block(local_r);
-            local_r_block[1] = bool_to_block(local_r + 128);
-            recv_pre_block(local_out, local_r_block, 256);
-        }
+
+        block local_r_block[2];
+        prg.random_bool(local_r, 256);
+        local_r_block[0] = bool_to_block(local_r);
+        local_r_block[1] = bool_to_block(local_r + 128);
+        recv_pre_block(local_out, local_r_block, 256);
+
         delete[] block_r;
     }
 
@@ -200,15 +199,13 @@ public:
     void send_cot(block * data, int64_t length) {
         send_pre(data, length);
 
-        if(malicious)
-            if(!send_check(data, length))
-                error("OT Extension check failed");
+        if(!send_check(data, length))
+            error("OT Extension check failed");
     }
 
     void recv_cot(block* data, const bool * b, int64_t length) {
         recv_pre(data, b, length);
-        if(malicious)
-            recv_check(data, b, length);
+        recv_check(data, b, length);
     }
 
 /*
