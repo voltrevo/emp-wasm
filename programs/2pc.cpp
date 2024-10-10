@@ -25,6 +25,7 @@ Enquiries about further applications and development opportunities are welcome.
 */
 
 #include <emp-tool/emp-tool.h>
+#include "emp-tool/io/net_io.h"
 #include "emp-ag2pc/2pc.h"
 using namespace std;
 using namespace emp;
