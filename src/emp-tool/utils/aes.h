@@ -118,31 +118,31 @@ inline void AES_ecb_encrypt_blks(block *_blks, unsigned int nblks, const AES_KEY
    uint8x16_t * keys = (uint8x16_t*)(key->rd_key);
    auto * first = blks;
    for (unsigned int j = 0; j < key->rounds-1; ++j) {
-		uint8x16_t key_j = (uint8x16_t)keys[j];
+        uint8x16_t key_j = (uint8x16_t)keys[j];
       blks = first;
       for (unsigned int i = 0; i < nblks; ++i, ++blks)
-	       *blks = vaesmcq_u8(vaeseq_u8(*blks, key_j));
+           *blks = vaesmcq_u8(vaeseq_u8(*blks, key_j));
    }
-	uint8x16_t last_key = (uint8x16_t)keys[key->rounds-1];
-	for (unsigned int i = 0; i < nblks; ++i, ++first)
-		 *first = vaeseq_u8(*first, last_key) ^ (uint8x16_t)keys[key->rounds];
+    uint8x16_t last_key = (uint8x16_t)keys[key->rounds-1];
+    for (unsigned int i = 0; i < nblks; ++i, ++first)
+         *first = vaeseq_u8(*first, last_key) ^ (uint8x16_t)keys[key->rounds];
 }
 #endif
 
 #ifdef __GNUC__
-	#ifndef __clang__
-		#pragma GCC push_options
-		#pragma GCC optimize ("unroll-loops")
-	#endif
+    #ifndef __clang__
+        #pragma GCC push_options
+        #pragma GCC optimize ("unroll-loops")
+    #endif
 #endif
 template<int N>
 inline void AES_ecb_encrypt_blks(block *blks, const AES_KEY *key) {
-	AES_ecb_encrypt_blks(blks, N, key);
+    AES_ecb_encrypt_blks(blks, N, key);
 }
 #ifdef __GNUC_
-	#ifndef __clang___
-		#pragma GCC pop_options
-	#endif
+    #ifndef __clang___
+        #pragma GCC pop_options
+    #endif
 #endif
 
 inline void

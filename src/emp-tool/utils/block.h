@@ -6,7 +6,7 @@
 #elif __aarch64__
 #include "sse2neon.h"
 inline __m128i _mm_aesimc_si128(__m128i a) {
-	return vreinterpretq_m128i_u8(vaesimcq_u8(vreinterpretq_u8_m128i(a)));
+    return vreinterpretq_m128i_u8(vaesimcq_u8(vreinterpretq_u8_m128i(a)));
 }
 
 inline __m128i _mm_aesdeclast_si128 (__m128i a, __m128i RoundKey)
@@ -26,17 +26,17 @@ namespace emp {
 using block = __m128i;
 
 inline bool getLSB(const block & x) {
-	return (x[0] & 1) == 1;
+    return (x[0] & 1) == 1;
 }
 
 #ifdef __x86_64__
 __attribute__((target("sse2")))
 inline block makeBlock(uint64_t high, uint64_t low) {
-	return _mm_set_epi64x(high, low);
+    return _mm_set_epi64x(high, low);
 }
 #elif __aarch64__
 inline block makeBlock(uint64_t high, uint64_t low) {
-	return (block)vcombine_u64((uint64x1_t)low, (uint64x1_t)high);
+    return (block)vcombine_u64((uint64x1_t)low, (uint64x1_t)high);
 }
 #endif
 
@@ -49,7 +49,7 @@ inline block makeBlock(uint64_t high, uint64_t low) {
 __attribute__((target("sse2")))
 #endif
 inline block sigma(block a) {
-	return _mm_shuffle_epi32(a, 78) ^ (a & makeBlock(0xFFFFFFFFFFFFFFFF, 0x00));
+    return _mm_shuffle_epi32(a, 78) ^ (a & makeBlock(0xFFFFFFFFFFFFFFFF, 0x00));
 }
 
 const block zero_block = makeBlock(0, 0);
@@ -57,48 +57,48 @@ const block all_one_block = makeBlock(0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF);
 const block select_mask[2] = {zero_block, all_one_block};
 
 inline block set_bit(const block & a, int i) {
-	if(i < 64)
-		return makeBlock(0L, 1ULL<<i) | a;
-	else
-		return makeBlock(1ULL<<(i-64), 0) | a;
+    if(i < 64)
+        return makeBlock(0L, 1ULL<<i) | a;
+    else
+        return makeBlock(1ULL<<(i-64), 0) | a;
 }
 
 inline std::ostream& operator<<(std::ostream& out, const block& blk) {
-	out << std::hex;
-	uint64_t* data = (uint64_t*)&blk;
+    out << std::hex;
+    uint64_t* data = (uint64_t*)&blk;
 
-	out << std::setw(16) << std::setfill('0') << data[1] <<" "
-		<< std::setw(16) << std::setfill('0') << data[0];
+    out << std::setw(16) << std::setfill('0') << data[1] <<" "
+        << std::setw(16) << std::setfill('0') << data[0];
 
-	out << std::dec << std::setw(0);
-	return out;
+    out << std::dec << std::setw(0);
+    return out;
 }
 
 
 inline void xorBlocks_arr(block* res, const block* x, const block* y, int nblocks) {
-	const block * dest = nblocks+x;
-	for (; x != dest;) {
-		*(res++) = *(x++) ^ *(y++);
-	}
+    const block * dest = nblocks+x;
+    for (; x != dest;) {
+        *(res++) = *(x++) ^ *(y++);
+    }
 }
 
 inline void xorBlocks_arr(block* res, const block* x, block y, int nblocks) {
-	const block * dest = nblocks+x;
-	for (; x != dest;) 
-		*(res++) =  *(x++) ^ y;
+    const block * dest = nblocks+x;
+    for (; x != dest;)
+        *(res++) =  *(x++) ^ y;
 }
 
 #ifdef __x86_64__
 __attribute__((target("sse4")))
 #endif
 inline bool cmpBlock(const block * x, const block * y, int nblocks) {
-	const block * dest = nblocks+x;
-	for (; x != dest;) {
-		__m128i vcmp = _mm_xor_si128(*(x++), *(y++));
-		if(!_mm_testz_si128(vcmp, vcmp))
-			return false;
-	}
-	return true;
+    const block * dest = nblocks+x;
+    for (; x != dest;) {
+        __m128i vcmp = _mm_xor_si128(*(x++), *(y++));
+        if(!_mm_testz_si128(vcmp, vcmp))
+            return false;
+    }
+    return true;
 }
 
 //Modified from
