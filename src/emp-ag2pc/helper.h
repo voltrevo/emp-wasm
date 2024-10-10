@@ -3,17 +3,10 @@
 #include <emp-tool/emp-tool.h>
 #include "config.h"
 
-using std::future;
 using std::cout;
 using std::endl;
 
 namespace emp {
-
-template<typename T>
-void joinNclean(vector<future<T>>& res) {
-	for(auto &v: res) v.get();
-	res.clear();
-}
 
 template<int B>
 void send_partial_block(IOChannel& io, const block * data, int length) {

@@ -2,7 +2,6 @@
 #define EMP_AG2PC_FPRE_H__
 #include <emp-tool/emp-tool.h>
 #include <emp-ot/emp-ot.h>
-#include <thread>
 #include "emp-ag2pc/feq.h"
 #include "emp-ag2pc/helper.h"
 #include "emp-ag2pc/leaky_deltaot.h"
@@ -13,8 +12,6 @@ namespace emp {
 
 class Fpre {
 	public:
-		ThreadPool *pool;
-		const static int THDS = fpre_threads;
 		int batch_size = 0, bucket_size = 0, size = 0;
 		int party;
 		block * keys = nullptr;
@@ -24,26 +21,24 @@ class Fpre {
 		PRP *prps;
 		std::vector<IOChannel> io;
 		std::vector<IOChannel> io2;
-		LeakyDeltaOT *abit1[THDS], *abit2[THDS];
+		LeakyDeltaOT *abit1[1], *abit2[1];
 		block Delta;
 		block ZDelta;
 		block one;
-		Feq *eq[THDS*2];
+		Feq *eq[2];
 		block * MAC = nullptr, *KEY = nullptr;
 		block * MAC_res = nullptr, *KEY_res = nullptr;
 		block * pretable = nullptr;
 		Fpre(IOChannel in_io, int in_party, int bsize = 1000) {
-			pool = new ThreadPool(THDS*2);
-			prps = new PRP[THDS*2];
+			prps = new PRP[2];
 			this->party = in_party;
-			for(int i = 0; i < THDS; ++i) {
-				usleep(1000);
-				io.push_back(in_io.open_another());
-				usleep(1000);
-				io2.push_back(in_io.open_another());
-				eq[i] = new Feq(io[i], party);
-				eq[THDS+i] = new Feq(io2[i], party);
-			}
+
+			usleep(1000);
+			io.push_back(in_io.open_another());
+			usleep(1000);
+			io2.push_back(in_io.open_another());
+			eq[0] = new Feq(io[0], party);
+			eq[1] = new Feq(io2[0], party);
 
 			abit1[0] = new LeakyDeltaOT(io[0]);
 			abit2[0] = new LeakyDeltaOT(io2[0]);
@@ -63,16 +58,15 @@ class Fpre {
 				abit2[0]->setup_send(tmp_s);
 			}
 			io2[0].flush();
-			for(int i = 1; i < THDS; ++i) {
-				abit1[i] = new LeakyDeltaOT(io[i]);
-				abit2[i] = new LeakyDeltaOT(io2[i]);
-				if(party == ALICE) { 
-					abit1[i]->setup_send(tmp_s, abit1[0]->k0);
-					abit2[i]->setup_recv(abit2[0]->k0, abit2[0]->k1);
-				} else {
-					abit2[i]->setup_send(tmp_s, abit2[0]->k0);
-					abit1[i]->setup_recv(abit1[0]->k0, abit1[0]->k1);
-				}
+
+			abit1[0] = new LeakyDeltaOT(io[0]);
+			abit2[0] = new LeakyDeltaOT(io2[0]);
+			if(party == ALICE) { 
+				abit1[0]->setup_send(tmp_s, abit1[0]->k0);
+				abit2[0]->setup_recv(abit2[0]->k0, abit2[0]->k1);
+			} else {
+				abit2[0]->setup_send(tmp_s, abit2[0]->k0);
+				abit1[0]->setup_recv(abit1[0]->k0, abit1[0]->k1);
 			}
 
 			if(party == ALICE) Delta = abit1[0]->Delta;
@@ -84,7 +78,7 @@ class Fpre {
 		int permute_batch_size;
 		void set_batch_size(int size) {
 			size = std::max(size, 320);
-			batch_size = ((size+THDS*2-1)/(2*THDS))*THDS*2;
+			batch_size = ((size+1)/2)*2;
 			if(batch_size >= 280*1000) {
 				bucket_size = 3;
 				permute_batch_size = 280000;
@@ -105,46 +99,35 @@ class Fpre {
 //			cout << size<<"\t"<<batch_size<<"\n";
 		}
 		~Fpre() {
-
 			delete[] MAC;
 			delete[] KEY;
 			delete[] MAC_res;
 			delete[] KEY_res;
 			delete[] prps;
-			delete pool;
-			for(int i = 0; i < THDS; ++i) {
-				delete abit1[i];
-				delete abit2[i];
-				delete eq[i];
-				delete eq[THDS + i];
-			}
+
+			delete abit1[0];
+			delete abit2[0];
+			delete eq[0];
+			delete eq[1];
 		}
 		void refill() {
 			auto start_time = clock_start();
-			vector<future<void>> res;
-			for(int i = 0; i < THDS; ++i) {
-				int start = i*(batch_size/THDS);
-				int length = batch_size/THDS;
-				res.push_back(pool->enqueue([this, start, length, i](){
-					generate(MAC + start * bucket_size*3, KEY + start * bucket_size*3, length * bucket_size, i);
-				}));
-			}
-			joinNclean(res);
+
+			int start = 0;
+			int length = batch_size;
+
+			generate(MAC + start * bucket_size*3, KEY + start * bucket_size*3, length * bucket_size, 0);
 
 			if(party == ALICE) {
 				cout <<"ABIT\t"<<time_from(start_time)<<"\n";
 				start_time = clock_start();
 			}
 
-		int T2U = THDS*2;
-			for(int i = 0; i < T2U; ++i) {
-				int start = i*(batch_size/T2U);
-				int length = batch_size/T2U;
-				res.push_back(pool->enqueue([this, start, length, i](){
-					check(MAC + start * bucket_size*3, KEY + start * bucket_size*3, length * bucket_size, i);
-				}));
+			for(int i = 0; i < 2; ++i) {
+				int start = i*(batch_size/2);
+				int length = batch_size/2;
+				check(MAC + start * bucket_size*3, KEY + start * bucket_size*3, length * bucket_size, i);
 			}
-			joinNclean(res);
 			if(party == ALICE) {
 				cout <<"check\t"<<time_from(start_time)<<"\n";
 				start_time = clock_start();
@@ -157,15 +140,11 @@ class Fpre {
 			if(bucket_size > 4) {
 				combine(S, 0, MAC, KEY, batch_size, bucket_size, MAC_res, KEY_res);
 			} else {
-				int width = min((batch_size+THDS-1)/THDS, permute_batch_size);
-				for(int i = 0; i < THDS; ++i) {
-					int start = i*width;
-					int length = min( (i+1)*width, batch_size) - i*width;
-					res.push_back(pool->enqueue([this, start, length, i, S](){
-						combine(S, i, MAC+start*bucket_size*3, KEY+start*bucket_size*3, length, bucket_size, MAC_res+start*3, KEY_res+start*3);
-					}));
-				}
-				joinNclean(res);
+				int width = min((batch_size), permute_batch_size);
+				
+				int start = 0;
+				int length = min(width, batch_size);
+				combine(S, 0, MAC+start*bucket_size*3, KEY+start*bucket_size*3, length, bucket_size, MAC_res+start*3, KEY_res+start*3);
 			}
 			if(party == ALICE) {
 				cout <<"permute\t"<<time_from(start_time)<<"\n";
@@ -176,7 +155,7 @@ class Fpre {
 			check_correctness(MAC, KEY, batch_size);
 #endif
 			char dgst[Hash::DIGEST_SIZE];
-			for(int i = 1; i < 2*THDS; ++i) {
+			for(int i = 1; i < 2; ++i) {
 				eq[i]->dgst(dgst);
 				eq[0]->add_data(dgst, Hash::DIGEST_SIZE);
 			}
@@ -187,17 +166,14 @@ class Fpre {
 
 		void generate(block * MAC, block * KEY, int length, int I) {
 			if (party == ALICE) {
-				future<void> fut = pool->enqueue([this, length, KEY, I](){
-					abit1[I]->send_dot(KEY, length*3);
-				});
+				abit1[I]->send_dot(KEY, length*3);
 				abit2[I]->recv_dot(MAC, length*3);
-				fut.get();
 			} else {
-				future<void> fut = pool->enqueue([this, length, KEY, I](){
-					abit2[I]->send_dot(KEY, length*3);
-				});
+				// TODO: I (Andrew) swapped the two lines below to remove a
+				// deadlock after I removed threading. I suspect that's fine
+				// but I need to check.
 				abit1[I]->recv_dot(MAC, length*3);
-				fut.get();
+				abit2[I]->send_dot(KEY, length*3);
 			}
 		}
 		

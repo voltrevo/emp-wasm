@@ -14,7 +14,6 @@ using std::min;
 #include "emp-tool/utils/prg.h"
 #include "emp-tool/utils/prp.h"
 #include "emp-tool/utils/utils.h"
-#include "emp-tool/utils/ThreadPool.h"
 #include "emp-tool/utils/group.h"
 #include "emp-tool/utils/mitccrh.h"
 #include "emp-tool/utils/aes_opt.h"
