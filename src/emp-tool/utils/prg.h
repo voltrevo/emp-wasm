@@ -68,7 +68,7 @@ public:
     void random_block(block * data, int nblocks=1) {
         for(int i = 0; i < nblocks; ++i) {
             block blk = makeBlock(0LL, counter++);
-            AES_ecb_encrypt_blks(&blk, 1, aes);
+            AES_ecb_encrypt_blks(&blk, 1, &aes);
             data[i] = blk;
         }
     }

@@ -1,20 +1,20 @@
 #ifndef EMP_GROUP_H
 #define EMP_GROUP_H
 
-#include <openssl/ec.h>
-#include <openssl/bn.h>
-#include <openssl/obj_mac.h>
 #include <string>
 #include <cstring>
+
 #include "emp-tool/utils/utils.h"
 
-//#ifdef ECC_USE_OPENSSL
-//#else
-//#include "group_relic.h"
-//#endif
+#include "mbedtls/bignum.h"
+#include "mbedtls/ecp.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/entropy.h"
+
 namespace emp {
-class BigInt { public:
-    BIGNUM *n = nullptr;
+class BigInt {
+public:
+    mbedtls_mpi n;
     BigInt();
     BigInt(const BigInt &oth);
     BigInt &operator=(BigInt oth);
@@ -25,40 +25,40 @@ class BigInt { public:
     void from_bin(const unsigned char * in, int length);
 
     BigInt add(const BigInt &oth);
-    BigInt mul(const BigInt &oth, BN_CTX *ctx);
-    BigInt mod(const BigInt &oth, BN_CTX *ctx);
-    BigInt add_mod(const BigInt & b, const BigInt& m, BN_CTX *ctx);
-    BigInt mul_mod(const BigInt & b, const BigInt& m, BN_CTX *ctx);
+    BigInt mul(const BigInt &oth);
+    BigInt mod(const BigInt &oth);
+    BigInt add_mod(const BigInt & b, const BigInt& m);
+    BigInt mul_mod(const BigInt & b, const BigInt& m);
 };
 class Group;
 class Point {
-    public:
-        EC_POINT *point = nullptr;
-        Group * group = nullptr;
-        Point (Group * g = nullptr);
-        ~Point();
-        Point(const Point & p);
-        Point& operator=(Point p);
+public:
+    mbedtls_ecp_point point;
+    Group * group = nullptr;
+    Point (Group * g = nullptr);
+    ~Point();
+    Point(const Point & p);
+    Point& operator=(Point p);
 
-        void to_bin(unsigned char * buf, size_t buf_len);
-        size_t size();
-        void from_bin(Group * g, const unsigned char * buf, size_t buf_len);
+    void to_bin(unsigned char * buf, size_t buf_len);
+    size_t size();
+    void from_bin(Group * g, const unsigned char * buf, size_t buf_len);
 
-        Point add(Point & rhs);
-//        Point sub(Point & rhs);
-//        bool is_at_infinity();
-//        bool is_on_curve();
-        Point mul(const BigInt &m);
-        Point inv();
-        bool operator==(Point & rhs);
+    Point add(Point & rhs);
+    Point mul(const BigInt &m);
+    Point inv();
+    bool operator==(Point & rhs);
 };
 
-class Group { public:
-    EC_GROUP *ec_group = nullptr;
-    BN_CTX * bn_ctx = nullptr;
+class Group {
+public:
+    mbedtls_ecp_group ec_group;
     BigInt order;
     unsigned char * scratch;
     size_t scratch_size = 256;
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_entropy_context entropy;
+
     Group();
     ~Group();
     void resize_scratch(size_t size);
@@ -68,7 +68,7 @@ class Group { public:
 };
 
 }
-#include "group_openssl.h"
 
+#include "group_mbedtls.h"
 
 #endif

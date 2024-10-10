@@ -4,12 +4,13 @@ Work in progress compiling authenticated garbling from [emp-toolkit/emp-ag2pc](h
 
 Currently this is just a stripped down version that you can compile with a single clang++ command (see `build.sh`).
 
-# Uncertain Refactors
+# Uncertain Changes
 
 For most of the changes I'm reasonably confident that I preserved behavior, but there some things I'm less confident about:
 
 - send and recv swapped for bob in `Fpre::generate` (see TODO comment)
 - after removing threading, I also moved everything to a single io channel
 - rewrite of simd code to not use simd and updated aes usage written by chatgpt o1 preview
+- used chatgpt o1 preview to migrate from openssl to mbedtls
 
 Regardless, this version of emp-toolkit needs some checking.

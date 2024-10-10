@@ -1,6 +1,7 @@
 #ifndef EMP_AES_OPT_KS_H
 #define EMP_AES_OPT_KS_H
 
+#include "emp-tool/utils/utils.h"
 #include "aes.h"  // Updated to include our standard AES functions without SIMD
 
 namespace emp {
@@ -14,12 +15,12 @@ static inline void AES_opt_key_schedule(block* user_keys, AES_KEY *keys) {
         unsigned char key_bytes[16];
         memcpy(key_bytes, &user_keys[i].low, 8);
         memcpy(key_bytes + 8, &user_keys[i].high, 8);
-        // Allocate and initialize the EVP_CIPHER_CTX
-        keys[i] = EVP_CIPHER_CTX_new();
-        // Initialize the context for encryption with the given key
-        EVP_EncryptInit_ex(keys[i], EVP_aes_128_ecb(), NULL, key_bytes, NULL);
-        // Disable padding
-        EVP_CIPHER_CTX_set_padding(keys[i], 0);
+        // Initialize the mbed TLS cipher context
+        mbedtls_cipher_init(&keys[i]);
+        const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
+        mbedtls_cipher_setup(&keys[i], cipher_info);
+        mbedtls_cipher_setkey(&keys[i], key_bytes, 128, MBEDTLS_ENCRYPT);
+        mbedtls_cipher_set_padding_mode(&keys[i], MBEDTLS_PADDING_NONE);
     }
 }
 
@@ -30,20 +31,31 @@ template<int numKeys, int numEncs>
 static inline void ParaEnc(block *blks, AES_KEY *keys) {
     for(int i = 0; i < numKeys; ++i) {
         unsigned char *data = reinterpret_cast<unsigned char*>(blks + i * numEncs);
-        int outlen1, outlen2;
-        int total_len = numEncs * 16;  // Each block is 16 bytes
+        size_t outlen1 = 0, outlen2 = 0;
+        size_t total_len = numEncs * 16;  // Each block is 16 bytes
+        unsigned char *output = new unsigned char[total_len + 16];  // Allocate output buffer
 
         // Reinitialize the context
-        EVP_EncryptInit_ex(keys[i], NULL, NULL, NULL, NULL);
+        mbedtls_cipher_reset(&keys[i]);
 
-        // Encrypt data in-place
-        EVP_EncryptUpdate(keys[i], data, &outlen1, data, total_len);
+        // Encrypt data
+        int ret = mbedtls_cipher_update(&keys[i], data, total_len, output, &outlen1);
+        if (ret != 0) {
+            error("Error in ParaEnc");
+        }
 
         // Finalize encryption
-        EVP_EncryptFinal_ex(keys[i], data + outlen1, &outlen2);
+        ret = mbedtls_cipher_finish(&keys[i], output + outlen1, &outlen2);
+        if (ret != 0) {
+            error("Error in ParaEnc");
+        }
 
         // Verify that the total output length matches the input length
         assert(outlen1 + outlen2 == total_len);
+
+        // Copy output back to data
+        memcpy(data, output, total_len);
+        delete[] output;  // Free allocated memory
     }
 }
 
@@ -51,7 +63,7 @@ static inline void ParaEnc(block *blks, AES_KEY *keys) {
 template<int NumKeys>
 static inline void AES_opt_key_free(AES_KEY *keys) {
     for(int i = 0; i < NumKeys; ++i) {
-        EVP_CIPHER_CTX_free(keys[i]);
+        mbedtls_cipher_free(&keys[i]);
     }
 }
 

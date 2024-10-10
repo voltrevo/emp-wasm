@@ -2,34 +2,35 @@
 #define EMP_HASH_H
 
 #include "block.h"
-#include <openssl/evp.h>
+#include <mbedtls/sha256.h>
 #include <stdio.h>
 
 namespace emp {
 class Hash {
 public:
-    EVP_MD_CTX *mdctx;
+    mbedtls_sha256_context mdctx;
+    static const int HASH_BUFFER_SIZE = 4096;
     char buffer[HASH_BUFFER_SIZE];
     int size = 0;
     static const int DIGEST_SIZE = 32;
 
     Hash() {
-        mdctx = EVP_MD_CTX_create();
-        EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+        mbedtls_sha256_init(&mdctx);
+        mbedtls_sha256_starts(&mdctx, 0); // 0 for SHA-256
     }
 
     ~Hash() {
-        EVP_MD_CTX_destroy(mdctx);
+        mbedtls_sha256_free(&mdctx);
     }
 
     void put(const void * data, int nbyte) {
-        if (nbyte >= HASH_BUFFER_SIZE)
-            EVP_DigestUpdate(mdctx, data, nbyte);
-        else if(size + nbyte < HASH_BUFFER_SIZE) {
+        if (nbyte >= HASH_BUFFER_SIZE) {
+            mbedtls_sha256_update(&mdctx, (const unsigned char *)data, nbyte);
+        } else if(size + nbyte < HASH_BUFFER_SIZE) {
             memcpy(buffer+size, data, nbyte);
             size+=nbyte;
         } else {
-            EVP_DigestUpdate(mdctx, buffer, size);
+            mbedtls_sha256_update(&mdctx, (const unsigned char *)buffer, size);
             memcpy(buffer, data, nbyte);
             size = nbyte;
         }
@@ -41,16 +42,15 @@ public:
 
     void digest(void * a) {
         if(size > 0) {
-            EVP_DigestUpdate(mdctx, buffer, size);
+            mbedtls_sha256_update(&mdctx, (const unsigned char *)buffer, size);
             size=0;
         }
-        unsigned int len = 0;
-        EVP_DigestFinal_ex(mdctx, (unsigned char *)a, &len);
+        mbedtls_sha256_finish(&mdctx, (unsigned char *)a);
         reset();
     }
 
     void reset() {
-        EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+        mbedtls_sha256_starts(&mdctx, 0);
         size=0;
     }
 
