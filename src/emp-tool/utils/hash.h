@@ -1,27 +1,27 @@
 #ifndef EMP_HASH_H
 #define EMP_HASH_H
 
-#include "emp-tool/utils/block.h"
-#include "emp-tool/utils/group.h"
-#include "emp-tool/utils/constants.h"
+#include "block.h"
 #include <openssl/evp.h>
 #include <stdio.h>
 
 namespace emp {
-class Hash { public:
+class Hash {
+public:
     EVP_MD_CTX *mdctx;
     char buffer[HASH_BUFFER_SIZE];
     int size = 0;
     static const int DIGEST_SIZE = 32;
+
     Hash() {
-        if((mdctx = EVP_MD_CTX_create()) == NULL)
-            error("Hash function setup error!");
-        if(1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL))
-            error("Hash function setup error!");
+        mdctx = EVP_MD_CTX_create();
+        EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
     }
+
     ~Hash() {
         EVP_MD_CTX_destroy(mdctx);
     }
+
     void put(const void * data, int nbyte) {
         if (nbyte >= HASH_BUFFER_SIZE)
             EVP_DigestUpdate(mdctx, data, nbyte);
@@ -34,34 +34,39 @@ class Hash { public:
             size = nbyte;
         }
     }
+
     void put_block(const block* blk, int nblock=1){
         put(blk, sizeof(block)*nblock);
     }
+
     void digest(void * a) {
         if(size > 0) {
             EVP_DigestUpdate(mdctx, buffer, size);
             size=0;
         }
-        uint32_t len = 0;
+        unsigned int len = 0;
         EVP_DigestFinal_ex(mdctx, (unsigned char *)a, &len);
         reset();
     }
+
     void reset() {
         EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
         size=0;
     }
+
     static void hash_once(void * dgst, const void * data, int nbyte) {
         Hash hash;
         hash.put(data, nbyte);
         hash.digest(dgst);
     }
-    #ifdef __x86_64__
-    __attribute__((target("sse2")))
-    #endif
+
     static block hash_for_block(const void * data, int nbyte) {
         char digest[DIGEST_SIZE];
         hash_once(digest, data, nbyte);
-        return _mm_load_si128((__m128i*)&digest[0]);
+        uint64_t low, high;
+        memcpy(&low, digest, sizeof(uint64_t));
+        memcpy(&high, digest + sizeof(uint64_t), sizeof(uint64_t));
+        return block(high, low);
     }
 
     static block KDF(Point &in, uint64_t id = 1) {
@@ -74,5 +79,5 @@ class Hash { public:
         return ret;
     }
 };
-}
-#endif// HASH_H
+} // namespace emp
+#endif // EMP_HASH_H
