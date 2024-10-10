@@ -1,5 +1,5 @@
-#ifndef EMP_BRISTOL_FORMAT_H__
-#define EMP_BRISTOL_FORMAT_H__
+#ifndef EMP_BRISTOL_FORMAT_H
+#define EMP_BRISTOL_FORMAT_H
 
 #include "emp-tool/execution/circuit_execution.h"
 #include "emp-tool/execution/protocol_execution.h"

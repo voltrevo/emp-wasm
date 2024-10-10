@@ -1,5 +1,5 @@
-#ifndef EMP_OTCO_H__
-#define EMP_OTCO_H__
+#ifndef EMP_OTCO_H
+#define EMP_OTCO_H
 #include <emp-tool/emp-tool.h>
 #include "emp-ot/ot.h"
 
@@ -96,4 +96,4 @@ class OTCO: public OT { public:
 };
 
 }//namespace
-#endif// OT_CO_H__
+#endif// OT_CO_H

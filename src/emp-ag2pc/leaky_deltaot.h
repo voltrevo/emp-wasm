@@ -1,5 +1,5 @@
-#ifndef LEAKY_DELTA_OT_H__
-#define LEAKY_DELTA_OT_H__
+#ifndef LEAKY_DELTA_OT_H
+#define LEAKY_DELTA_OT_H
 #include <emp-ot/emp-ot.h>
 namespace emp {
 #ifdef __GNUC__
@@ -44,4 +44,4 @@ public:
 	#endif
 #endif
 }
-#endif// LEAKY_DELTA_OT_H__
+#endif// LEAKY_DELTA_OT_H

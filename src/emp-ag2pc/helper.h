@@ -1,5 +1,5 @@
-#ifndef EMP_AG2PC_HELPER_H__
-#define EMP_AG2PC_HELPER_H__
+#ifndef EMP_AG2PC_HELPER_H
+#define EMP_AG2PC_HELPER_H
 #include <emp-tool/emp-tool.h>
 #include "config.h"
 

@@ -1,5 +1,5 @@
-#ifndef EMP_AG2PC_FEQ_H__
-#define EMP_AG2PC_FEQ_H__
+#ifndef EMP_AG2PC_FEQ_H
+#define EMP_AG2PC_FEQ_H
 #include <emp-tool/emp-tool.h>
 
 namespace emp {
@@ -45,4 +45,4 @@ class Feq { public:
 };
 
 }
-#endif// FEQ_H__
+#endif// FEQ_H

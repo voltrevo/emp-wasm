@@ -1,5 +1,5 @@
-#ifndef EMP_AG2PC_FPRE_H__
-#define EMP_AG2PC_FPRE_H__
+#ifndef EMP_AG2PC_FPRE_H
+#define EMP_AG2PC_FPRE_H
 #include <emp-tool/emp-tool.h>
 #include <emp-ot/emp-ot.h>
 #include "emp-ag2pc/feq.h"
@@ -357,4 +357,4 @@ class Fpre {
 		}
 };
 }
-#endif// FPRE_H__
+#endif// FPRE_H

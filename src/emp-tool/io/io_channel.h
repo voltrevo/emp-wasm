@@ -1,5 +1,5 @@
-#ifndef EMP_IO_CHANNEL_H__
-#define EMP_IO_CHANNEL_H__
+#ifndef EMP_IO_CHANNEL_H
+#define EMP_IO_CHANNEL_H
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/prg.h"
 #include "emp-tool/utils/group.h"

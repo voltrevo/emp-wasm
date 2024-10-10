@@ -1,5 +1,5 @@
-#ifndef EMP_PRP_H__
-#define EMP_PRP_H__
+#ifndef EMP_PRP_H
+#define EMP_PRP_H
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/constants.h"
 #include "emp-tool/utils/aes.h"
@@ -37,4 +37,4 @@ class PRP { public:
 	}
 };
 }
-#endif// PRP_H__
+#endif// PRP_H

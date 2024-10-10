@@ -1,5 +1,5 @@
-#ifndef EMP_AG2PC_2PC_H__
-#define EMP_AG2PC_2PC_H__
+#ifndef EMP_AG2PC_2PC_H
+#define EMP_AG2PC_2PC_H
 #include <emp-tool/emp-tool.h>
 #include "emp-ag2pc/fpre.h"
 
@@ -524,4 +524,4 @@ public:
 
 }
 
-#endif // EMP_AG2PC_2PC_H__
+#endif // EMP_AG2PC_2PC_H

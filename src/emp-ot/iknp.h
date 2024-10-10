@@ -1,5 +1,5 @@
-#ifndef EMP_IKNP_H__
-#define EMP_IKNP_H__
+#ifndef EMP_IKNP_H
+#define EMP_IKNP_H
 #include "emp-ot/co.h"
 
 namespace emp {
