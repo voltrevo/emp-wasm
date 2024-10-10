@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "emp-ag2pc/2pc.h"
+
 #include "Buffer.hpp"
 
 void start_impl();
