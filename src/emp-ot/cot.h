@@ -58,41 +58,6 @@ public:
 			}
 		}
 	}
-
-	void send_rot(block* data0, block* data1, int64_t length) {
-		send_cot(data0, length);
-		block s; prg.random_block(&s, 1);
-		io.send_block(&s,1);
-		mitccrh.setS(s);
-		io.flush();
-
-		block pad[ot_bsize*2];
-		for(int64_t i = 0; i < length; i+=ot_bsize) {
-			for(int64_t j = i; j < min(i+ot_bsize, length); ++j) {
-				pad[2*(j-i)] = data0[j];
-				pad[2*(j-i)+1] = data0[j] ^ Delta;
-			}
-			mitccrh.hash<ot_bsize, 2>(pad);
-			for(int64_t j = i; j < min(i+ot_bsize, length); ++j) {
-				data0[j] = pad[2*(j-i)];
-				data1[j] = pad[2*(j-i)+1];
-			}
-		}
-	}
-
-	void recv_rot(block* data, const bool* r, int64_t length) {
-		recv_cot(data, r, length);
-		block s;
-		io.recv_block(&s,1);
-		mitccrh.setS(s);
-		io.flush();
-		block pad[ot_bsize];
-		for(int64_t i = 0; i < length; i+=ot_bsize) {
-			memcpy(pad, data+i, min(ot_bsize,length-i)*sizeof(block));
-			mitccrh.hash<ot_bsize, 1>(pad);
-			memcpy(data+i, pad, min(ot_bsize,length-i)*sizeof(block));
-		}
-	}
 };
 
 }
