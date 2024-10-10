@@ -5,10 +5,17 @@
 
 #include "Buffer.hpp"
 
+void start_impl();
+
 extern "C" {
     EMSCRIPTEN_KEEPALIVE
     uint8_t* js_malloc(int size) {
         return (uint8_t*)malloc(size);
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    void start() {
+        start_impl();
     }
 }
 
@@ -17,7 +24,7 @@ EM_ASYNC_JS(uint8_t*, get_data_impl, (int* lengthPtr), {
 
     // Simulate asynchronous data retrieval
     const data = await new Promise((resolve) => {
-        window.provideData = (dataArray) => {
+        Module.provideData = (dataArray) => {
             console.log("JavaScript: Data received.");
             // const dataArray = [1, 2, 3]; // Example data
             resolve(dataArray);
@@ -46,6 +53,10 @@ Buffer get_data() {
 }
 
 int main() {
+    return 0;
+}
+
+void start_impl() {
     puts("C++: Before calling get_data");
 
     Buffer data = get_data();
@@ -56,6 +67,4 @@ int main() {
     for (int i = 0; i < data.size(); ++i) {
         printf("C++: Data[%d] = %d\n", i, data[i]);
     }
-
-    return 0;
 }
