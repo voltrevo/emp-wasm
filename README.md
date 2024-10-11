@@ -2,7 +2,7 @@
 
 Wasm build of authenticated garbling from [emp-toolkit/emp-ag2pc](https://github.com/emp-toolkit/emp-ag2pc).
 
-This is also a stripped down version that you can compile with a single clang++ command (see `build.sh`).
+This is also a stripped down version that you can compile with a single clang++ command (see quick-start scripts).
 
 ## Quick Start
 
