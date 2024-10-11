@@ -285,7 +285,7 @@ public:
     ) {
         std::vector<bool> output(cf->n3);
 
-        int correct_input_size = party == ALICE ? cf->n2 : cf->n1;
+        size_t correct_input_size = party == ALICE ? cf->n2 : cf->n1;
 
         if (input.size() != correct_input_size) {
             throw std::invalid_argument("input size does not match circuit");

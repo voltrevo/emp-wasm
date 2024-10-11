@@ -29,7 +29,7 @@ EM_ASYNC_JS(void, recv_js, (void* data, size_t len), {
     }
 
     // Wait for data from JavaScript
-    const dataArray = await Module.recv();
+    const dataArray = await Module.recv(arguments[1]);
 
     // Copy data from JavaScript Uint8Array to WebAssembly memory
     HEAPU8.set(dataArray, data);
@@ -59,7 +59,7 @@ EM_JS(char*, get_circuit_raw, (int* lengthPtr), {
     const length = lengthBytesUTF8(circuitString) + 1; // Calculate length including the null terminator
 
     // Allocate memory for the string
-    const strPtr = Module._js_malloc(length);
+    const strPtr = Module._js_char_malloc(length);
     stringToUTF8(circuitString, strPtr, length);
 
     // Set the length at the provided pointer location
@@ -73,7 +73,8 @@ emp::BristolFormat get_circuit() {
     int length = 0;
     char* circuit_raw = get_circuit_raw(&length);
 
-    emp::BristolFormat circuit(circuit_raw);
+    emp::BristolFormat circuit;
+    circuit.from_str(circuit_raw);
     free(circuit_raw);
 
     return circuit;
@@ -145,6 +146,11 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE
     uint8_t* js_malloc(int size) {
         return (uint8_t*)malloc(size);
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    char* js_char_malloc(int size) {
+        return (char*)malloc(size);
     }
 }
 
