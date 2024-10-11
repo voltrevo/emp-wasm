@@ -10,4 +10,6 @@ clang++ \
     -lmbedtls \
     -lmbedcrypto \
     -lmbedx509 \
-    -o bin/2pc
+    -o build/2pc
+
+echo "Build successful, use ./scripts/local_test.sh to run the program."

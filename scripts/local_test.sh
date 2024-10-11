@@ -3,8 +3,8 @@
 set -euo pipefail
 
 # Define the programs to run
-PROGRAM_A="./bin/2pc 1 8005"
-PROGRAM_B="./bin/2pc 2 8005"
+PROGRAM_A="./build/2pc 1 8005"
+PROGRAM_B="./build/2pc 2 8005"
 
 # Run two instances of the program in the background and print output as it comes
 $PROGRAM_A 2>&1 | sed 's/^/A: /' &

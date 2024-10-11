@@ -3,17 +3,22 @@
 set -euo pipefail
 
 # Variables
-MBEDTLS_DIR="../external/mbedtls"
+MBEDTLS_DIR="./external/mbedtls"
 BUILD_DIR="$MBEDTLS_DIR/build/library"
 
+if [ ! -d "$BUILD_DIR" ]; then
+  echo "Please run ./scripts/build_mbedtls.sh first"
+  exit 1
+fi
+
 # Emscripten build
-em++ async.cpp Buffer.cpp -sASYNCIFY -o index.html \
+em++ programs/jslib.cpp -sASYNCIFY -o build/index.html \
   -O3 \
   -Wall \
   -Wextra \
   -pedantic \
   -Wno-unused-parameter \
-  -I ../src/ \
+  -I ./src/ \
   -I "$MBEDTLS_DIR/include" \
   -L "$BUILD_DIR" \
   -lmbedtls \
