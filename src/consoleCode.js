@@ -112,7 +112,7 @@ class BufferQueue {
     }
   }
   
-  Module.getCircuit = () => `375 439
+  Module.emp.circuit = `375 439
   32 32   33
   
   2 1 0 32 406 XOR
@@ -598,12 +598,12 @@ class BufferQueue {
     bq.push(data);
   }
   
-  Module.getInputBits = () => Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  Module.emp.input = Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   
-  Module.send = send;
-  Module.recv = len => bq.pop(len);
+  Module.emp.send = send;
+  Module.emp.recv = len => bq.pop(len);
   
-  Module.handleOutputBits = bits => {
+  Module.emp.handleOutput = bits => {
     console.log('output', bits);
   };
   
