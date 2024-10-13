@@ -9,11 +9,16 @@ async function simpleDemo(party: 'alice' | 'bob', input: number): Promise<void> 
   alert(numberFrom32Bits(bits));
 }
 
+type IO = {
+  send: (data: Uint8Array) => void;
+  recv: (len: number) => Promise<Uint8Array>;
+};
+
 declare const Module: {
   emp?: {
     circuit?: string;
     input?: Uint8Array;
-    io?: { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> };
+    io?: IO;
     handleOutput?: (value: Uint8Array) => void;
   };
   _run(party: number): void;
@@ -32,7 +37,7 @@ async function secure2PC(
   party: 'alice' | 'bob',
   circuit: string,
   input: Uint8Array,
-  io: { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> }
+  io: IO,
 ): Promise<Uint8Array> {
   if (Module.emp) {
     throw new Error('Can only run one secure2PC at a time');
@@ -41,7 +46,7 @@ async function secure2PC(
   const emp: { 
     circuit?: string; 
     input?: Uint8Array; 
-    io?: { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> }; 
+    io?: IO; 
     handleOutput?: (value: Uint8Array) => void 
   } = {};
   
@@ -235,7 +240,7 @@ class BufferQueue {
  * Creates an I/O interface for secure communication using a BufferQueue.
  * @returns An object with `send` and `recv` methods for communication.
  */
-function makeCopyPasteIO(): { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> } {
+function makeCopyPasteIO(): IO {
   const bq = new BufferQueue();
 
   (window as any).write = function (base64: string): void {
