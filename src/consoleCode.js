@@ -1,3 +1,81 @@
+async function simpleDemo(party, input) {
+  const bits = await secure2PC(
+    party,
+    add32BitCircuit,
+    numberTo32Bits(input),
+    makeCopyPasteIO(),
+  );
+
+  alert(numberFrom32Bits(bits));
+}
+
+async function secure2PC(
+  party,
+  circuit,
+  input,
+  io,
+) {
+  if (Module.emp) {
+    throw new Error('Can only run one secure2PC at a time');
+  }
+
+  const emp = {};
+  Module.emp = emp;
+
+  emp.circuit = circuit;
+  emp.input = input;
+  emp.io = io;
+
+  const result = new Promise((resolve, reject) => {
+    try {
+      emp.handleOutput = resolve;
+      // TODO: emp.handleError
+
+      Module._run(partyToIndex(party));
+    } catch (error) {
+      reject(error);
+    }
+  });
+
+  try {
+    return await result;
+  } finally {
+    Module.emp = undefined;
+  }
+}
+
+function numberTo32Bits(x) {
+  const result = new Uint8Array(32);
+
+  for (let i = 0; i < 32; i++) {
+    result[i] = (x >>> i) & 1;
+  }
+
+  return result;
+}
+
+function numberFrom32Bits(arr) {
+  let result = 0;
+
+  for (let i = 0; i < 32; i++) {
+    result |= arr[i] << i;
+  }
+
+  return result;
+}
+
+function partyToIndex(party) {
+  if (party === 'alice') {
+    return 1;
+  }
+  
+  if (party === 'bob') {
+    return 2;
+  }
+  
+  throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
+}
+
 class BufferQueue {
   constructor(initialCapacity = 1024) {
     // Initialize the buffer with a given capacity
@@ -112,7 +190,75 @@ class BufferQueue {
   }
 }
 
-Module.emp.circuit = `375 439
+function makeCopyPasteIO() {
+  const bq = new BufferQueue();
+
+  window.write = function (base64) {
+    const data = decodeBase64(base64);
+    bq.push(data);
+  };
+
+  return {
+    send: makeConsoleSend(),
+    recv: len => bq.pop(len),
+  };
+}
+
+function makeConsoleSend() {
+  // Buffer to accumulate Uint8Array inputs
+  let buffer = [];
+  // Timer identifier
+  let timer = null;
+  // Time window in milliseconds
+  const TIME_WINDOW = 100;
+
+  // The actual send function that will be returned
+  return function (data) {
+    // Validate that the input is a Uint8Array
+    if (!(data instanceof Uint8Array)) {
+      throw new TypeError('Input must be a Uint8Array');
+    }
+
+    // Add the incoming data to the buffer
+    buffer.push(data);
+
+    // If no timer is set, start one
+    if (!timer) {
+      timer = setTimeout(() => {
+        // Calculate the total length of all Uint8Arrays in the buffer
+        const totalLength = buffer.reduce((acc, arr) => acc + arr.length, 0);
+        // Create a new Uint8Array with the total length
+        const concatenated = new Uint8Array(totalLength);
+        // Offset to keep track of the current position in the concatenated array
+        let offset = 0;
+        // Iterate over each Uint8Array in the buffer and set its values in the concatenated array
+        buffer.forEach(arr => {
+          concatenated.set(arr, offset);
+          offset += arr.length;
+        });
+
+        // Convert the concatenated Uint8Array to a binary string
+        // This is necessary because btoa works with binary strings
+        let binary = '';
+        for (let byte of concatenated) {
+          binary += String.fromCharCode(byte);
+        }
+
+        // Convert the binary string to a Base64 string
+        const base64 = btoa(binary);
+
+        // Print the Base64 string to the console
+        console.log(`write('${base64}')`);
+
+        // Reset the buffer and timer for the next batch of inputs
+        buffer = [];
+        timer = null;
+      }, TIME_WINDOW);
+    }
+  };
+}
+
+const add32BitCircuit = `375 439
 32 32   33
 
 2 1 0 32 406 XOR
@@ -491,119 +637,41 @@ Module.emp.circuit = `375 439
 2 1 65 66 64 AND
 1 1 64 438 INV
 `;
-  
-// Define the send function using an Immediately Invoked Function Expression (IIFE)
-// to create a closure for maintaining state between calls.
-const send = (function () {
-    // Buffer to accumulate Uint8Array inputs
-    let buffer = [];
-    // Timer identifier
-    let timer = null;
-    // Time window in milliseconds
-    const TIME_WINDOW = 100;
-
-    // The actual send function that will be returned
-    return function (data) {
-        // Validate that the input is a Uint8Array
-        if (!(data instanceof Uint8Array)) {
-            throw new TypeError('Input must be a Uint8Array');
-        }
-
-        // Add the incoming data to the buffer
-        buffer.push(data);
-
-        // If no timer is set, start one
-        if (!timer) {
-            timer = setTimeout(() => {
-                // Calculate the total length of all Uint8Arrays in the buffer
-                const totalLength = buffer.reduce((acc, arr) => acc + arr.length, 0);
-                // Create a new Uint8Array with the total length
-                const concatenated = new Uint8Array(totalLength);
-                // Offset to keep track of the current position in the concatenated array
-                let offset = 0;
-                // Iterate over each Uint8Array in the buffer and set its values in the concatenated array
-                buffer.forEach(arr => {
-                    concatenated.set(arr, offset);
-                    offset += arr.length;
-                });
-
-                // Convert the concatenated Uint8Array to a binary string
-                // This is necessary because btoa works with binary strings
-                let binary = '';
-                for (let byte of concatenated) {
-                    binary += String.fromCharCode(byte);
-                }
-
-                // Convert the binary string to a Base64 string
-                const base64 = btoa(binary);
-
-                // Print the Base64 string to the console
-                console.log(`write('${base64}')`);
-
-                // Reset the buffer and timer for the next batch of inputs
-                buffer = [];
-                timer = null;
-            }, TIME_WINDOW);
-        }
-    };
-})();
 
 /**
- * Function: write
- * ----------------
- * Decodes a Base64-encoded string into a Uint8Array and calls the external push method with the decoded data.
+ * Function: decodeBase64
+ * ----------------------
+ * Decodes a Base64-encoded string into a Uint8Array
  *
  * @param {string} base64Str - The Base64-encoded string to decode and process.
  *
  * @throws {TypeError} Throws an error if the input is not a string.
  * @throws {Error} Throws an error if Base64 decoding fails or if push is not defined.
  */
-function write(base64Str) {
-    // Validate that the input is a string
-    if (typeof base64Str !== 'string') {
-        throw new TypeError('Input must be a Base64-encoded string');
+function decodeBase64(base64Str) {
+  // Validate that the input is a string
+  if (typeof base64Str !== 'string') {
+    throw new TypeError('Input must be a Base64-encoded string');
+  }
+
+  let decodedArray;
+
+  try {
+    // Decode the Base64 string to a binary string using atob
+    const binaryStr = atob(base64Str);
+
+    // Create a Uint8Array with the same length as the binary string
+    const len = binaryStr.length;
+    decodedArray = new Uint8Array(len);
+
+    // Populate the Uint8Array with the character codes from the binary string
+    for (let i = 0; i < len; i++) {
+      decodedArray[i] = binaryStr.charCodeAt(i);
     }
+  } catch (error) {
+    // Handle errors that may occur during decoding
+    throw new Error('Failed to decode Base64 string: ' + error.message);
+  }
 
-    let decodedArray;
-
-    try {
-        // Decode the Base64 string to a binary string using atob
-        const binaryStr = atob(base64Str);
-
-        // Create a Uint8Array with the same length as the binary string
-        const len = binaryStr.length;
-        decodedArray = new Uint8Array(len);
-
-        // Populate the Uint8Array with the character codes from the binary string
-        for (let i = 0; i < len; i++) {
-            decodedArray[i] = binaryStr.charCodeAt(i);
-        }
-    } catch (error) {
-        // Handle errors that may occur during decoding
-        throw new Error('Failed to decode Base64 string: ' + error.message);
-    }
-
-    // Ensure that push is a function defined in the global scope or accessible scope
-    if (typeof push !== 'function') {
-        throw new Error('push method is not defined');
-    }
-
-    // Call the external push method with the decoded Uint8Array
-    push(decodedArray);
+  return decodedArray;
 }
-
-bq = new BufferQueue();
-
-function push(data) {
-  bq.push(data);
-}
-
-Module.emp.input = Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-
-Module.emp.send = send;
-Module.emp.recv = len => bq.pop(len);
-
-Module.emp.handleOutput = bits => {
-  console.log('output', bits);
-};
-  

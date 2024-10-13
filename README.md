@@ -31,7 +31,7 @@ This generates `build/index.html` and some assets. To run it you'll need an http
 
 Currently it's a rather unpolished environment, but you can open this in two tabs and paste `src/consoleCode.js` into each console.
 
-From there run `Module._run(1)` in one tab and `Module._run(2)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance. Eventually the output will be displayed, which should be `[0, 0, 0, 0, ...]`. This is 0 in little endian, the successful sum of 0 and 0. To change the numbers provided by each party, see `getInputBits`.
+From there run `simpleDemo('alice', 3)` in one tab and `simpleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance. After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
 
 Requirements:
 - [emscripten](https://emscripten.org/)

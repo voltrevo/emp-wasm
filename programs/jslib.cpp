@@ -11,25 +11,25 @@ void run_impl(int party);
 
 // Implement send_js function to send data from C++ to JavaScript
 EM_JS(void, send_js, (const void* data, size_t len), {
-    if (!Module.emp.send) {
-        throw new Error("Module.send is not defined in JavaScript.");
+    if (!Module.emp?.io?.send) {
+        throw new Error("Module.emp.io.send is not defined in JavaScript.");
     }
 
     // Copy data from WebAssembly memory to a JavaScript Uint8Array
     const dataArray = HEAPU8.slice(data, data + len);
 
-    Module.emp.send(dataArray);
+    Module.emp.io.send(dataArray);
 });
 
 // Implement recv_js function to receive data from JavaScript to C++
 EM_ASYNC_JS(void, recv_js, (void* data, size_t len), {
-    if (!Module.emp.recv) {
-        reject(new Error("Module.emp.recv is not defined in JavaScript."));
+    if (!Module.emp?.io?.recv) {
+        reject(new Error("Module.emp.io.recv is not defined in JavaScript."));
         return;
     }
 
     // Wait for data from JavaScript
-    const dataArray = await Module.emp.recv(arguments[1]);
+    const dataArray = await Module.emp.io.recv(arguments[1]);
 
     // Copy data from JavaScript Uint8Array to WebAssembly memory
     HEAPU8.set(dataArray, data);
@@ -51,7 +51,7 @@ public:
 };
 
 EM_JS(char*, get_circuit_raw, (int* lengthPtr), {
-    if (!Module.emp.circuit) {
+    if (!Module.emp?.circuit) {
         throw new Error("Module.emp.circuit is not defined in JavaScript.");
     }
 
@@ -81,7 +81,7 @@ emp::BristolFormat get_circuit() {
 }
 
 EM_JS(uint8_t*, get_input_bits_raw, (int* lengthPtr), {
-    if (!Module.emp.input) {
+    if (!Module.emp?.input) {
         throw new Error("Module.emp.input is not defined in JavaScript.");
     }
 
@@ -114,7 +114,7 @@ std::vector<bool> get_input_bits() {
 }
 
 EM_JS(void, handle_output_bits_raw, (uint8_t* outputBits, int length), {
-    if (!Module.emp.handleOutput) {
+    if (!Module.emp?.handleOutput) {
         throw new Error("Module.emp.handleOutput is not defined in JavaScript.");
     }
 
