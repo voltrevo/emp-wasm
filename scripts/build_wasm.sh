@@ -18,7 +18,7 @@ em++ programs/jslib.cpp -sASYNCIFY -o build/index.html \
   -Wextra \
   -pedantic \
   -Wno-unused-parameter \
-  -I ./src/ \
+  -I ./src/cpp/ \
   -I "$MBEDTLS_DIR/include" \
   -L "$BUILD_DIR" \
   -lmbedtls \

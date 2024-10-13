@@ -4,7 +4,7 @@ clang++ \
     -O3 \
     -std=c++17 \
     programs/2pc.cpp \
-    -I src/ \
+    -I src/cpp/ \
     -I $(brew --prefix mbedtls)/include \
     -L $(brew --prefix mbedtls)/lib \
     -lmbedtls \
