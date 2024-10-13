@@ -1,4 +1,4 @@
-async function simpleDemo(party, input) {
+async function simpleDemo(party: 'alice' | 'bob', input: number): Promise<void> {
   const bits = await secure2PC(
     party,
     add32BitCircuit,
@@ -9,24 +9,49 @@ async function simpleDemo(party, input) {
   alert(numberFrom32Bits(bits));
 }
 
+declare const Module: {
+  emp?: {
+    circuit?: string;
+    input?: Uint8Array;
+    io?: { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> };
+    handleOutput?: (value: Uint8Array) => void;
+  };
+  _run(party: number): void;
+};
+
+/**
+ * Runs a secure two-party computation (2PC) using a specified circuit.
+ *
+ * @param party - The party initiating the computation ('alice' or 'bob').
+ * @param circuit - The circuit to run (in this case, a 32-bit addition circuit).
+ * @param input - The input to the circuit, represented as a 32-bit binary array.
+ * @param io - Input/output channels for communication between the two parties.
+ * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
+ */
 async function secure2PC(
-  party,
-  circuit,
-  input,
-  io,
-) {
+  party: 'alice' | 'bob',
+  circuit: string,
+  input: Uint8Array,
+  io: { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> }
+): Promise<Uint8Array> {
   if (Module.emp) {
     throw new Error('Can only run one secure2PC at a time');
   }
 
-  const emp = {};
+  const emp: { 
+    circuit?: string; 
+    input?: Uint8Array; 
+    io?: { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> }; 
+    handleOutput?: (value: Uint8Array) => void 
+  } = {};
+  
   Module.emp = emp;
 
   emp.circuit = circuit;
   emp.input = input;
   emp.io = io;
 
-  const result = new Promise((resolve, reject) => {
+  const result = new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
       // TODO: emp.handleError
@@ -44,7 +69,13 @@ async function secure2PC(
   }
 }
 
-function numberTo32Bits(x) {
+/**
+ * Converts a number into its 32-bit binary representation.
+ *
+ * @param x - The number to convert.
+ * @returns A 32-bit binary representation of the number in the form of a Uint8Array.
+ */
+function numberTo32Bits(x: number): Uint8Array {
   const result = new Uint8Array(32);
 
   for (let i = 0; i < 32; i++) {
@@ -54,7 +85,13 @@ function numberTo32Bits(x) {
   return result;
 }
 
-function numberFrom32Bits(arr) {
+/**
+ * Converts a 32-bit binary representation back into a number.
+ *
+ * @param arr - A 32-bit binary array.
+ * @returns The number represented by the 32-bit array.
+ */
+function numberFrom32Bits(arr: Uint8Array): number {
   let result = 0;
 
   for (let i = 0; i < 32; i++) {
@@ -64,7 +101,14 @@ function numberFrom32Bits(arr) {
   return result;
 }
 
-function partyToIndex(party) {
+/**
+ * Maps a party ('alice' or 'bob') to an index number.
+ *
+ * @param party - The party ('alice' or 'bob').
+ * @returns 1 for 'alice', 2 for 'bob'.
+ * @throws Will throw an error if the party is invalid.
+ */
+function partyToIndex(party: 'alice' | 'bob'): number {
   if (party === 'alice') {
     return 1;
   }
@@ -76,22 +120,30 @@ function partyToIndex(party) {
   throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
 }
 
+/**
+ * A queue for managing buffered data that allows pushing and popping of data chunks.
+ */
 class BufferQueue {
-  constructor(initialCapacity = 1024) {
-    // Initialize the buffer with a given capacity
+  private buffer: Uint8Array;
+  private bufferStart: number;
+  private bufferEnd: number;
+  private pendingPops: number[];
+  private pendingPopsResolvers: ((value: Uint8Array) => void)[];
+
+  constructor(initialCapacity: number = 1024) {
     this.buffer = new Uint8Array(initialCapacity);
-    this.bufferStart = 0; // Start pointer
-    this.bufferEnd = 0;   // End pointer
-    this.pendingPops = []; // Queue of pending pop requests
-    this.pendingPopsResolvers = []; // Resolvers for pending pops
+    this.bufferStart = 0;
+    this.bufferEnd = 0;
+    this.pendingPops = [];
+    this.pendingPopsResolvers = [];
   }
 
   /**
    * Ensures that the buffer has enough capacity to accommodate additional bytes.
    * If not, it resizes the buffer by doubling its current size.
-   * @param {number} additionalLength 
+   * @param additionalLength - The additional length of data to be accommodated.
    */
-  _ensureCapacity(additionalLength) {
+  private _ensureCapacity(additionalLength: number): void {
     const required = this.bufferEnd + additionalLength;
     if (required > this.buffer.length) {
       let newLength = this.buffer.length * 2;
@@ -108,44 +160,37 @@ class BufferQueue {
 
   /**
    * Pushes new data into the buffer and resolves any pending pop requests if possible.
-   * @param {Uint8Array} data 
+   * @param data - The data to push into the buffer (must be a Uint8Array).
    */
-  push(data) {
+  push(data: Uint8Array): void {
     if (!(data instanceof Uint8Array)) {
       throw new TypeError('Data must be a Uint8Array');
     }
 
-    // Ensure buffer has enough capacity
     this._ensureCapacity(data.length);
-
-    // Append data to the buffer
     this.buffer.set(data, this.bufferEnd);
     this.bufferEnd += data.length;
-
-    // Try to resolve pending pops
     this._resolvePendingPops();
   }
 
   /**
    * Pops a specified number of bytes from the buffer.
    * Returns a Promise that resolves with a Uint8Array of the requested length.
-   * @param {number} len 
-   * @returns {Promise<Uint8Array>}
+   * @param len - The number of bytes to pop from the buffer.
+   * @returns A promise resolving with the popped data as a Uint8Array.
    */
-  pop(len) {
+  pop(len: number): Promise<Uint8Array> {
     if (typeof len !== 'number' || len < 0) {
       return Promise.reject(new Error('Length must be non-negative integer'));
     }
 
-    // Check if enough data is available
     if (this.bufferEnd - this.bufferStart >= len) {
       const result = this.buffer.slice(this.bufferStart, this.bufferStart + len);
       this.bufferStart += len;
       this._compactBuffer();
       return Promise.resolve(result);
     } else {
-      // Not enough data, return a promise and enqueue the request
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         this.pendingPops.push(len);
         this.pendingPopsResolvers.push(resolve);
       });
@@ -153,20 +198,18 @@ class BufferQueue {
   }
 
   /**
-   * Resolves pending pop requests if enough data is available.
+   * Resolves pending pop requests if enough data is available in the buffer.
    */
-  _resolvePendingPops() {
+  private _resolvePendingPops(): void {
     while (this.pendingPops.length > 0) {
       const len = this.pendingPops[0];
       if (this.bufferEnd - this.bufferStart >= len) {
-        // Enough data to fulfill this pop
         const data = this.buffer.slice(this.bufferStart, this.bufferStart + len);
         this.bufferStart += len;
         this.pendingPops.shift();
-        const resolve = this.pendingPopsResolvers.shift();
+        const resolve = this.pendingPopsResolvers.shift()!;
         resolve(data);
       } else {
-        // Not enough data for the next pending pop
         break;
       }
     }
@@ -174,15 +217,13 @@ class BufferQueue {
   }
 
   /**
-   * Compacts the buffer by resetting pointers if all data has been consumed.
+   * Compacts the buffer by resetting the start and end pointers if all data has been consumed.
    */
-  _compactBuffer() {
-    // If all data has been consumed, reset pointers to avoid buffer growing indefinitely
+  private _compactBuffer(): void {
     if (this.bufferStart === this.bufferEnd) {
       this.bufferStart = 0;
       this.bufferEnd = 0;
     } else if (this.bufferStart > 0) {
-      // Shift data to the beginning to free up space
       this.buffer.set(this.buffer.subarray(this.bufferStart, this.bufferEnd));
       this.bufferEnd -= this.bufferStart;
       this.bufferStart = 0;
@@ -190,72 +231,94 @@ class BufferQueue {
   }
 }
 
-function makeCopyPasteIO() {
+/**
+ * Creates an I/O interface for secure communication using a BufferQueue.
+ * @returns An object with `send` and `recv` methods for communication.
+ */
+function makeCopyPasteIO(): { send: (data: Uint8Array) => void; recv: (len: number) => Promise<Uint8Array> } {
   const bq = new BufferQueue();
 
-  window.write = function (base64) {
+  (window as any).write = function (base64: string): void {
     const data = decodeBase64(base64);
     bq.push(data);
   };
 
   return {
     send: makeConsoleSend(),
-    recv: len => bq.pop(len),
+    recv: (len: number) => bq.pop(len),
   };
 }
 
-function makeConsoleSend() {
-  // Buffer to accumulate Uint8Array inputs
-  let buffer = [];
-  // Timer identifier
-  let timer = null;
-  // Time window in milliseconds
+/**
+ * Creates a function for sending data via console output using Base64 encoding.
+ * The data is sent in batches to optimize performance.
+ * @returns A function that takes Uint8Array data and logs it to the console.
+ */
+function makeConsoleSend(): (data: Uint8Array) => void {
+  let buffer: Uint8Array[] = [];
+  let timer: ReturnType<typeof setTimeout> | null = null;
   const TIME_WINDOW = 100;
 
-  // The actual send function that will be returned
-  return function (data) {
-    // Validate that the input is a Uint8Array
+  return function (data: Uint8Array): void {
     if (!(data instanceof Uint8Array)) {
       throw new TypeError('Input must be a Uint8Array');
     }
 
-    // Add the incoming data to the buffer
     buffer.push(data);
 
-    // If no timer is set, start one
     if (!timer) {
       timer = setTimeout(() => {
-        // Calculate the total length of all Uint8Arrays in the buffer
         const totalLength = buffer.reduce((acc, arr) => acc + arr.length, 0);
-        // Create a new Uint8Array with the total length
         const concatenated = new Uint8Array(totalLength);
-        // Offset to keep track of the current position in the concatenated array
         let offset = 0;
-        // Iterate over each Uint8Array in the buffer and set its values in the concatenated array
         buffer.forEach(arr => {
           concatenated.set(arr, offset);
           offset += arr.length;
         });
 
-        // Convert the concatenated Uint8Array to a binary string
-        // This is necessary because btoa works with binary strings
         let binary = '';
         for (let byte of concatenated) {
           binary += String.fromCharCode(byte);
         }
 
-        // Convert the binary string to a Base64 string
         const base64 = btoa(binary);
-
-        // Print the Base64 string to the console
         console.log(`write('${base64}')`);
 
-        // Reset the buffer and timer for the next batch of inputs
         buffer = [];
         timer = null;
       }, TIME_WINDOW);
     }
   };
+}
+
+/**
+ * Decodes a Base64-encoded string into a Uint8Array.
+ * 
+ * @param base64Str - The Base64-encoded string to decode and process.
+ * @throws {TypeError} If the input is not a string.
+ * @throws {Error} If Base64 decoding fails.
+ * @returns A Uint8Array representing the decoded binary data.
+ */
+function decodeBase64(base64Str: string): Uint8Array {
+  if (typeof base64Str !== 'string') {
+    throw new TypeError('Input must be a Base64-encoded string');
+  }
+
+  let decodedArray: Uint8Array;
+
+  try {
+    const binaryStr = atob(base64Str);
+    const len = binaryStr.length;
+    decodedArray = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      decodedArray[i] = binaryStr.charCodeAt(i);
+    }
+  } catch (error) {
+    throw new Error('Failed to decode Base64 string: ' + error.message);
+  }
+
+  return decodedArray;
 }
 
 const add32BitCircuit = `375 439
@@ -637,41 +700,3 @@ const add32BitCircuit = `375 439
 2 1 65 66 64 AND
 1 1 64 438 INV
 `;
-
-/**
- * Function: decodeBase64
- * ----------------------
- * Decodes a Base64-encoded string into a Uint8Array
- *
- * @param {string} base64Str - The Base64-encoded string to decode and process.
- *
- * @throws {TypeError} Throws an error if the input is not a string.
- * @throws {Error} Throws an error if Base64 decoding fails or if push is not defined.
- */
-function decodeBase64(base64Str) {
-  // Validate that the input is a string
-  if (typeof base64Str !== 'string') {
-    throw new TypeError('Input must be a Base64-encoded string');
-  }
-
-  let decodedArray;
-
-  try {
-    // Decode the Base64 string to a binary string using atob
-    const binaryStr = atob(base64Str);
-
-    // Create a Uint8Array with the same length as the binary string
-    const len = binaryStr.length;
-    decodedArray = new Uint8Array(len);
-
-    // Populate the Uint8Array with the character codes from the binary string
-    for (let i = 0; i < len; i++) {
-      decodedArray[i] = binaryStr.charCodeAt(i);
-    }
-  } catch (error) {
-    // Handle errors that may occur during decoding
-    throw new Error('Failed to decode Base64 string: ' + error.message);
-  }
-
-  return decodedArray;
-}
