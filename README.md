@@ -11,26 +11,28 @@ npm install emp-wasm
 ```
 
 ```ts
-import { secure2PC } from 'emp-wasm';
+import { secure2PC, BufferedIO } from 'emp-wasm';
 
 import circuit from './circuit.ts';
 
 async function main() {
+  const io = new BufferedIO(
+    (data: Uint8Array) => {
+      // send data to Bob
+    },
+  );
+
   const output = await secure2PC(
     'alice', // use 'bob' in the other client
     circuit, // a string defining the circuit, see circuits/*.txt for examples
     Uint8Array.from([/* 0s and 1s defining your input bits */]),
-    {
-      send: (data: Uint8Array) => {
-        // Send data to Bob
-      },
-      recv: (len: number): Promise<Uint8Array> => {
-        // Return a promise to the next `len` bytes of data from Bob
-        // (must be exactly `len` bytes - implement your own buffering using
-        // BufferQueue.ts or however you prefer)
-      },
-    },
+    io, // or implement { send, recv } directly (requires some buffer bookkeeping)
   );
+
+  onReceivedData((data: Uint8Array) => {
+    // When you receive data from Bob, pass it to io.accept
+    io.accept(data);
+  });
 
   // the output bits from the circuit as a Uint8Array
   console.log(output);
