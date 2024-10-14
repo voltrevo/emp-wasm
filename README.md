@@ -31,27 +31,21 @@ async function main() {
   console.log(output);
 }
 
-async function makeWebSocketIO(url: string): Promise<IO> {
-  const sock = new WebSocket('wss://somehow-talk-to-bob');
+async function makeWebSocketIO(url: string) {
+  const sock = new WebSocket(url);
   sock.binaryType = 'arraybuffer';
 
-  const openPromise = new Promise(resolve => {
+  await new Promise((resolve, reject) => {
     sock.onopen = resolve;
-  });
-
-  const errorPromise = new Promise<never>((_resolve, reject) => {
     sock.onerror = reject;
   });
-
-  await Promise.race([openPromise, errorPromise]);
 
   // You don't have to use BufferedIO, but it's a bit easier to use, otherwise
   // you need to implement io.recv(len) returning a promise to exactly len
   // bytes
   const io = new BufferedIO(
-    (data: Uint8Array) => {
-      sock.send(data);
-    },
+    data => sock.send(data),
+    () => sock.close(),
   );
 
   sock.onmessage = (event: MessageEvent) => {
@@ -68,6 +62,8 @@ async function makeWebSocketIO(url: string): Promise<IO> {
     io.emit('error', new Error(`WebSocket error: ${e}`));
   };
 
+  sock.onclose = () => io.close();
+
   return io;
 }
 
@@ -75,22 +71,6 @@ main().catch(console.error);
 ```
 
 For a concrete example, see `wsDemo` in `demo.ts` (usage instructions further down in readme).
-
-## Regular C++ Compile
-
-This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
-
-```sh
-./scripts/build_local_test.sh
-./scripts/local_test.sh
-```
-
-This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to Alice that Bob knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.
-
-Requirements:
-- clang
-- mbedtls (on macos: `brew install mbedtls`)
-  - this version of mbedtls is actually *not* needed for the wasm version, since we need to compile a wasm-specific version ourselves
 
 ## Demo
 
@@ -119,6 +99,22 @@ Open the url in the console in two tabs and run `await wsDemo('alice', 3)` in on
 ### `rtcDemo`
 
 Open the url in the console in two tabs and run `await rtcDemo('pair-id', 'alice', 3)` in one and `await rtcDemo('pair-id', 'bob', 5)` in the other. This one uses WebRTC (via [peerjs](https://npmjs.com/package/peerjs)) and should work across networks, locating each other via `pair-id`.
+
+## Regular C++ Compile
+
+This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
+
+```sh
+./scripts/build_local_test.sh
+./scripts/local_test.sh
+```
+
+This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to Alice that Bob knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.
+
+Requirements:
+- clang
+- mbedtls (on macos: `brew install mbedtls`)
+  - this version of mbedtls is actually *not* needed for the wasm version, since we need to compile a wasm-specific version ourselves
 
 ## Uncertain Changes
 
