@@ -1,3 +1,4 @@
+import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
 import workerSrc from "./workerSrc";
 
@@ -7,8 +8,14 @@ export default function secure2PC(
   input: Uint8Array,
   io: IO,
 ): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
+  const ev = new EventEmitter<{ cleanup(): void }>();
+
+  const result = new Promise<Uint8Array>((resolve, reject) => {
     const worker = new Worker(workerSrc);
+    ev.on('cleanup', () => worker.terminate());
+
+    io.on?.('error', reject);
+    ev.on('cleanup', () => io.off?.('error', reject));
 
     worker.postMessage({
       type: 'start',
@@ -38,17 +45,14 @@ export default function secure2PC(
       } else if (message.type === 'result') {
         // Resolve the promise with the result from the worker
         resolve(message.result);
-        worker.terminate();
       } else if (message.type === 'error') {
         // Reject the promise if an error occurred
         reject(new Error(message.error));
-        worker.terminate();
       }
     };
 
-    worker.onerror = (error) => {
-      reject(error);
-      worker.terminate();
-    };
+    worker.onerror = reject;
   });
+
+  return result.finally(() => ev.emit('cleanup'));
 }
