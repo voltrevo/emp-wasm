@@ -16,23 +16,49 @@ import { secure2PC, BufferedIO } from 'emp-wasm';
 import circuit from './circuit.ts';
 
 async function main() {
+  // emp-wasm has no opinion about how you do your IO, websockets are just used
+  // for this example
+  const bob = new WebSocket('wss://somehow-talk-to-bob');
+  bob.binaryType = 'arraybuffer';
+
+  const socketOpenPromise = new Promise(resolve => {
+    bob.onopen = resolve;
+  });
+
+  const socketErrorPromise = new Promise<never>((_resolve, reject) => {
+    bob.onerror = reject;
+  });
+
+  await Promise.race([socketOpenPromise, socketErrorPromise]);
+
   const io = new BufferedIO(
     (data: Uint8Array) => {
-      // send data to Bob
+      bob.send(data);
     },
   );
 
-  const output = await secure2PC(
+  const outputPromise = secure2PC(
     'alice', // use 'bob' in the other client
     circuit, // a string defining the circuit, see circuits/*.txt for examples
     Uint8Array.from([/* 0s and 1s defining your input bits */]),
     io, // or implement { send, recv } directly (requires some buffer bookkeeping)
   );
 
-  onReceivedData((data: Uint8Array) => {
-    // When you receive data from Bob, pass it to io.accept
-    io.accept(data);
+  bob.onmessage = (event: MessageEvent) => {
+    if (!(event.data instanceof ArrayBuffer)) {
+      console.error('Unrecognized event.data');
+      return;
+    }
+
+    // Pass Uint8Arrays to io.accept
+    io.accept(new Uint8Array(event.data));
+  };
+
+  const socketErrorPromise = new Promise<never>((_resolve, reject) => {
+    bob.onerror = reject;
   });
+
+  const output = await Promise.race([outputPromise, socketErrorPromise]);
 
   // the output bits from the circuit as a Uint8Array
   console.log(output);
