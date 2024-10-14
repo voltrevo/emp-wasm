@@ -2,11 +2,46 @@
 
 Wasm build of authenticated garbling from [emp-toolkit/emp-ag2pc](https://github.com/emp-toolkit/emp-ag2pc).
 
-This is also a stripped down version that you can compile with a single clang++ command (see quick-start scripts).
+(If you're not familiar with garbled circuits, you might find [this video](https://www.youtube.com/watch?v=FMZ-HARN0gI) helpful.)
 
-## Quick Start
+## Usage
 
-You can compile the stripped down version and run a test like this:
+```sh
+npm install emp-wasm
+```
+
+```ts
+import { secure2PC } from 'emp-wasm';
+
+import circuit from './circuit.ts';
+
+async function main() {
+  const output = await secure2PC(
+    'alice', // use 'bob' in the other client
+    circuit, // a string defining the circuit, see circuits/*.txt for examples
+    Uint8Array.from([/* 0s and 1s defining your input bits */]),
+    {
+      send: (data: Uint8Array) => {
+        // Send data to Bob
+      },
+      recv: (len: number): Promise<Uint8Array> => {
+        // Return a promise to the next `len` bytes of data from Bob
+        // (must be exactly `len` bytes - implement your own buffering using
+        // BufferQueue.ts or however you prefer)
+      },
+    },
+  );
+
+  // the output bits from the circuit as a Uint8Array
+  console.log(output);
+}
+
+main().catch(console.error);
+```
+
+## Regular C++ Compile
+
+This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
 
 ```sh
 ./scripts/build_local_test.sh
@@ -20,7 +55,7 @@ Requirements:
 - mbedtls (on macos: `brew install mbedtls`)
   - this version of mbedtls is actually *not* needed for the wasm version, since we need to compile a wasm-specific version ourselves
 
-## Wasm Demo
+## Console Demo
 
 ```sh
 npm install
@@ -35,7 +70,6 @@ Open the url in the console in two tabs and run `simpleDemo('alice', 3)` in one 
 Requirements:
 - nodejs
 - [emscripten](https://emscripten.org/)
-- static http server
 
 ## Uncertain Changes
 
