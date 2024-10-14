@@ -14,7 +14,7 @@ fi
 mkdir -p build
 
 # Emscripten build
-em++ programs/jslib.cpp -sASYNCIFY -o build/index.html \
+em++ programs/jslib.cpp -sASYNCIFY -o build/jslib.js \
   -O3 \
   -Wall \
   -Wextra \
@@ -27,9 +27,12 @@ em++ programs/jslib.cpp -sASYNCIFY -o build/index.html \
   -lmbedcrypto \
   -lmbedx509 \
   -lembind \
-  -s MODULARIZE=1 -s EXPORT_ES6=1 \
+  -s SINGLE_FILE=1 \
   -s ENVIRONMENT='web,worker' \
   -sASSERTIONS=1 \
   -sSTACK_SIZE=8388608 \
   -sEXPORTED_FUNCTIONS=['_js_malloc','_main'] \
   -sEXPORTED_RUNTIME_METHODS=['HEAPU8','setValue']
+
+# -s MODULARIZE=1 -s EXPORT_ES6=1 \
+# -s EXPORT_NAME=EmscriptenModule \

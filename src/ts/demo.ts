@@ -1,4 +1,15 @@
-async function simpleDemo(party: 'alice' | 'bob', input: number): Promise<void> {
+import BufferQueue from "./BufferQueue";
+import secure2PC from "./secure2PC";
+import { IO } from "./types";
+
+const windowAny = window as any;
+
+windowAny.secure2PC = secure2PC;
+
+windowAny.simpleDemo = async function(
+  party: 'alice' | 'bob',
+  input: number
+): Promise<void> {
   const bits = await secure2PC(
     party,
     add32BitCircuit,
@@ -7,71 +18,6 @@ async function simpleDemo(party: 'alice' | 'bob', input: number): Promise<void> 
   );
 
   alert(numberFrom32Bits(bits));
-}
-
-type IO = {
-  send: (data: Uint8Array) => void;
-  recv: (len: number) => Promise<Uint8Array>;
-};
-
-declare const Module: {
-  emp?: {
-    circuit?: string;
-    input?: Uint8Array;
-    io?: IO;
-    handleOutput?: (value: Uint8Array) => void;
-  };
-  _run(party: number): void;
-};
-
-/**
- * Runs a secure two-party computation (2PC) using a specified circuit.
- *
- * @param party - The party initiating the computation ('alice' or 'bob').
- * @param circuit - The circuit to run (in this case, a 32-bit addition circuit).
- * @param input - The input to the circuit, represented as a 32-bit binary array.
- * @param io - Input/output channels for communication between the two parties.
- * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
- */
-async function secure2PC(
-  party: 'alice' | 'bob',
-  circuit: string,
-  input: Uint8Array,
-  io: IO,
-): Promise<Uint8Array> {
-  if (Module.emp) {
-    throw new Error('Can only run one secure2PC at a time');
-  }
-
-  const emp: { 
-    circuit?: string; 
-    input?: Uint8Array; 
-    io?: IO; 
-    handleOutput?: (value: Uint8Array) => void 
-  } = {};
-  
-  Module.emp = emp;
-
-  emp.circuit = circuit;
-  emp.input = input;
-  emp.io = io;
-
-  const result = new Promise<Uint8Array>((resolve, reject) => {
-    try {
-      emp.handleOutput = resolve;
-      // TODO: emp.handleError
-
-      Module._run(partyToIndex(party));
-    } catch (error) {
-      reject(error);
-    }
-  });
-
-  try {
-    return await result;
-  } finally {
-    Module.emp = undefined;
-  }
 }
 
 /**
@@ -107,136 +53,6 @@ function numberFrom32Bits(arr: Uint8Array): number {
 }
 
 /**
- * Maps a party ('alice' or 'bob') to an index number.
- *
- * @param party - The party ('alice' or 'bob').
- * @returns 1 for 'alice', 2 for 'bob'.
- * @throws Will throw an error if the party is invalid.
- */
-function partyToIndex(party: 'alice' | 'bob'): number {
-  if (party === 'alice') {
-    return 1;
-  }
-  
-  if (party === 'bob') {
-    return 2;
-  }
-  
-  throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
-}
-
-/**
- * A queue for managing buffered data that allows pushing and popping of data chunks.
- */
-class BufferQueue {
-  private buffer: Uint8Array;
-  private bufferStart: number;
-  private bufferEnd: number;
-  private pendingPops: number[];
-  private pendingPopsResolvers: ((value: Uint8Array) => void)[];
-
-  constructor(initialCapacity: number = 1024) {
-    this.buffer = new Uint8Array(initialCapacity);
-    this.bufferStart = 0;
-    this.bufferEnd = 0;
-    this.pendingPops = [];
-    this.pendingPopsResolvers = [];
-  }
-
-  /**
-   * Ensures that the buffer has enough capacity to accommodate additional bytes.
-   * If not, it resizes the buffer by doubling its current size.
-   * @param additionalLength - The additional length of data to be accommodated.
-   */
-  private _ensureCapacity(additionalLength: number): void {
-    const required = this.bufferEnd + additionalLength;
-    if (required > this.buffer.length) {
-      let newLength = this.buffer.length * 2;
-      while (newLength < required) {
-        newLength *= 2;
-      }
-      const newBuffer = new Uint8Array(newLength);
-      newBuffer.set(this.buffer.subarray(this.bufferStart, this.bufferEnd));
-      this.bufferEnd -= this.bufferStart;
-      this.bufferStart = 0;
-      this.buffer = newBuffer;
-    }
-  }
-
-  /**
-   * Pushes new data into the buffer and resolves any pending pop requests if possible.
-   * @param data - The data to push into the buffer (must be a Uint8Array).
-   */
-  push(data: Uint8Array): void {
-    if (!(data instanceof Uint8Array)) {
-      throw new TypeError('Data must be a Uint8Array');
-    }
-
-    this._ensureCapacity(data.length);
-    this.buffer.set(data, this.bufferEnd);
-    this.bufferEnd += data.length;
-    this._resolvePendingPops();
-  }
-
-  /**
-   * Pops a specified number of bytes from the buffer.
-   * Returns a Promise that resolves with a Uint8Array of the requested length.
-   * @param len - The number of bytes to pop from the buffer.
-   * @returns A promise resolving with the popped data as a Uint8Array.
-   */
-  pop(len: number): Promise<Uint8Array> {
-    if (typeof len !== 'number' || len < 0) {
-      return Promise.reject(new Error('Length must be non-negative integer'));
-    }
-
-    if (this.bufferEnd - this.bufferStart >= len) {
-      const result = this.buffer.slice(this.bufferStart, this.bufferStart + len);
-      this.bufferStart += len;
-      this._compactBuffer();
-      return Promise.resolve(result);
-    } else {
-      return new Promise((resolve) => {
-        this.pendingPops.push(len);
-        this.pendingPopsResolvers.push(resolve);
-      });
-    }
-  }
-
-  /**
-   * Resolves pending pop requests if enough data is available in the buffer.
-   */
-  private _resolvePendingPops(): void {
-    while (this.pendingPops.length > 0) {
-      const len = this.pendingPops[0];
-      if (this.bufferEnd - this.bufferStart >= len) {
-        const data = this.buffer.slice(this.bufferStart, this.bufferStart + len);
-        this.bufferStart += len;
-        this.pendingPops.shift();
-        const resolve = this.pendingPopsResolvers.shift()!;
-        resolve(data);
-      } else {
-        break;
-      }
-    }
-    this._compactBuffer();
-  }
-
-  /**
-   * Compacts the buffer by resetting the start and end pointers if all data has been consumed.
-   */
-  private _compactBuffer(): void {
-    if (this.bufferStart === this.bufferEnd) {
-      this.bufferStart = 0;
-      this.bufferEnd = 0;
-    } else if (this.bufferStart > 0) {
-      this.buffer.set(this.buffer.subarray(this.bufferStart, this.bufferEnd));
-      this.bufferEnd -= this.bufferStart;
-      this.bufferStart = 0;
-    }
-  }
-}
-
-/**
  * Creates an I/O interface for secure communication using a BufferQueue.
  * @returns An object with `send` and `recv` methods for communication.
  */
@@ -262,7 +78,7 @@ function makeCopyPasteIO(): IO {
 function makeConsoleSend(): (data: Uint8Array) => void {
   let buffer: Uint8Array[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const TIME_WINDOW = 100;
+  const TIME_WINDOW = 1_000;
 
   return function (data: Uint8Array): void {
     if (!(data instanceof Uint8Array)) {

@@ -20,18 +20,17 @@ Requirements:
 - mbedtls (on macos: `brew install mbedtls`)
   - this version of mbedtls is actually *not* needed for the wasm version, since we need to compile a wasm-specific version ourselves
 
-## Wasm
+## Wasm Demo
 
 ```sh
 npm install
 npm run build
+npm run demo
 ```
 
-This generates `build/index.html` and some assets. Run it using `npx live-server build`.
+The demo is a local webserver enabling console interaction.
 
-Currently it's a rather unpolished environment, but you can open this in two tabs and paste `dist/src/ts/consoleCode.js` into each console.
-
-From there run `simpleDemo('alice', 3)` in one tab and `simpleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance. After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
+Open the url in the console in two tabs and run `simpleDemo('alice', 3)` in one and `simpleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
 
 Requirements:
 - nodejs
