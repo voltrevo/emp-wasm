@@ -116,6 +116,10 @@ Open the url in the console in two tabs and run `consoleDemo('alice', 3)` in one
 
 Open the url in the console in two tabs and run `await wsDemo('alice', 3)` in one and `await wsDemo('bob', 5)` in the other. This uses a websocket relay included in `npm run demo` and defined in `scripts/relayServer.ts`.
 
+### `rtcDemo`
+
+Open the url in the console in two tabs and run `await rtcDemo('pair-id', 'alice', 3)` in one and `await rtcDemo('pair-id', 'bob', 5)` in the other. This one uses WebRTC (via [peerjs](https://npmjs.com/package/peerjs)) and should work across networks, locating each other via `pair-id`.
+
 ## Uncertain Changes
 
 For most of the changes I'm reasonably confident that I preserved behavior, but there some things I'm less confident about:

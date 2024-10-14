@@ -1,3 +1,5 @@
+import { DataConnection, Peer } from 'peerjs';
+
 import BufferedIO from "./BufferedIO";
 import BufferQueue from "./BufferQueue";
 import secure2PC from "./secure2PC";
@@ -69,30 +71,45 @@ windowAny.wsDemo = async function(
     io,
   );
 
+  io.close();
+
   return numberFrom32Bits(bits);
 }
 
-async function makeWebSocketIO(url: string): Promise<IO> {
+windowAny.rtcDemo = async function(
+  pairingCode: string,
+  party: 'alice' | 'bob',
+  input: number,
+): Promise<number> {
+  const io = await makePeerIO(pairingCode, party);
+
+  const bits = await secure2PC(
+    party,
+    add32BitCircuit,
+    numberTo32Bits(input),
+    io,
+  );
+
+  io.close();
+
+  return numberFrom32Bits(bits);
+}
+
+async function makeWebSocketIO(url: string) {
   const sock = new WebSocket(url);
   sock.binaryType = 'arraybuffer';
 
-  const openPromise = new Promise(resolve => {
+  await new Promise((resolve, reject) => {
     sock.onopen = resolve;
-  });
-
-  const errorPromise = new Promise<never>((_resolve, reject) => {
     sock.onerror = reject;
   });
-
-  await Promise.race([openPromise, errorPromise]);
 
   // You don't have to use BufferedIO, but it's a bit easier to use, otherwise
   // you need to implement io.recv(len) returning a promise to exactly len
   // bytes
   const io = new BufferedIO(
-    (data: Uint8Array) => {
-      sock.send(data);
-    },
+    data => sock.send(data),
+    () => sock.close(),
   );
 
   sock.onmessage = (event: MessageEvent) => {
@@ -108,6 +125,56 @@ async function makeWebSocketIO(url: string): Promise<IO> {
   sock.onerror = (e) => {
     io.emit('error', new Error(`WebSocket error: ${e}`));
   };
+
+  sock.onclose = () => io.close();
+
+  return io;
+}
+
+async function makePeerIO(pairingCode: string, party: 'alice' | 'bob') {
+  const peer = new Peer(`emp-wasm-${pairingCode}-${party}`);
+
+  await new Promise((resolve, reject) => {
+    peer.on('open', resolve);
+    peer.on('error', reject);
+  });
+
+  let conn: DataConnection;
+
+  if (party === 'alice') {
+    conn = await new Promise(resolve => peer.on('connection', resolve));
+  } else {
+    conn = peer.connect(`emp-wasm-${pairingCode}-alice`);
+  }
+
+  const io = new BufferedIO(
+    (data: Uint8Array) => conn.send(data),
+    () => conn.close(),
+  );
+
+  conn.on('data', (data) => {
+    let buf: Uint8Array;
+
+    if (data instanceof ArrayBuffer) {
+      buf = new Uint8Array(data);
+    } else if (data instanceof Uint8Array) {
+      buf = data;
+    } else {
+      io.emit('error', new Error('Received unrecognized data type'));
+      return;
+    }
+
+    io.accept(buf);
+  });
+
+  conn.on('close', () => io.close());
+
+  if (!conn.open) {
+    await new Promise<void>((resolve, reject) => {
+      conn.on('open', resolve);
+      conn.on('error', reject);
+    });
+  }
 
   return io;
 }

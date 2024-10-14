@@ -6,7 +6,11 @@ export default class BufferQueue {
   private bufferStart: number;
   private bufferEnd: number;
   private pendingPops: number[];
-  private pendingPopsResolvers: ((value: Uint8Array) => void)[];
+  private pendingPopsResolvers: {
+    resolve: ((value: Uint8Array) => void),
+    reject: (e: Error) => void,
+  }[];
+  private closed: boolean = false;
 
   constructor(initialCapacity: number = 1024) {
     this.buffer = new Uint8Array(initialCapacity);
@@ -45,6 +49,10 @@ export default class BufferQueue {
       throw new TypeError('Data must be a Uint8Array');
     }
 
+    if (this.closed) {
+      throw new Error('Buffer is closed');
+    }
+
     this._ensureCapacity(data.length);
     this.buffer.set(data, this.bufferEnd);
     this.bufferEnd += data.length;
@@ -67,12 +75,33 @@ export default class BufferQueue {
       this.bufferStart += len;
       this._compactBuffer();
       return Promise.resolve(result);
-    } else {
-      return new Promise((resolve) => {
+    } else if (!this.closed) {
+      return new Promise((resolve, reject) => {
         this.pendingPops.push(len);
-        this.pendingPopsResolvers.push(resolve);
+        this.pendingPopsResolvers.push({ resolve, reject });
       });
+    } else {
+      return Promise.reject(new Error('Buffer is closed'));
     }
+  }
+
+  /**
+   * Closes the buffer queue, preventing any further data from being pushed.
+   */
+  close(): void {
+    this.closed = true;
+
+    if (this.pendingPops.length > 0) {
+      this._rejectPendingPops(new Error('Buffer is closed'));
+    }
+  }
+
+  /**
+   * Checks if the buffer queue is closed.
+   * @returns True if the buffer queue is closed, false otherwise.
+   */
+  isClosed(): boolean {
+    return this.closed;
   }
 
   /**
@@ -85,13 +114,21 @@ export default class BufferQueue {
         const data = this.buffer.slice(this.bufferStart, this.bufferStart + len);
         this.bufferStart += len;
         this.pendingPops.shift();
-        const resolve = this.pendingPopsResolvers.shift()!;
+        const { resolve } = this.pendingPopsResolvers.shift()!;
         resolve(data);
       } else {
         break;
       }
     }
     this._compactBuffer();
+  }
+
+  private _rejectPendingPops(error: Error): void {
+    while (this.pendingPops.length > 0) {
+      this.pendingPops.shift();
+      const { reject } = this.pendingPopsResolvers.shift()!;
+      reject(error);
+    }
   }
 
   /**

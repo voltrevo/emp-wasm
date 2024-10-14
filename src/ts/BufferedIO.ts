@@ -8,8 +8,20 @@ export default class BufferedIO
 {
   private bq = new BufferQueue();
 
-  constructor(public send: IO['send']) {
+  constructor(
+    public send: IO['send'],
+    private closeOther?: IO['close'],
+  ) {
     super();
+  }
+
+  close() {
+    if (this.bq.isClosed()) {
+      return;
+    }
+
+    this.bq.close();
+    this.closeOther?.();
   }
 
   async recv(len: number): Promise<Uint8Array> {
