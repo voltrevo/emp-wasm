@@ -1,0 +1,6 @@
+*
+!dist/**
+!src/ts/**
+!package.json
+!LICENSE
+!README.md
