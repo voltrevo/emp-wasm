@@ -74,6 +74,8 @@ async function makeWebSocketIO(url: string): Promise<IO> {
 main().catch(console.error);
 ```
 
+For a concrete example, see `wsDemo` in `demo.ts` (usage instructions further down in readme).
+
 ## Regular C++ Compile
 
 This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
@@ -90,7 +92,7 @@ Requirements:
 - mbedtls (on macos: `brew install mbedtls`)
   - this version of mbedtls is actually *not* needed for the wasm version, since we need to compile a wasm-specific version ourselves
 
-## Console Demo
+## Demo
 
 ```sh
 npm install
@@ -98,13 +100,17 @@ npm run build
 npm run demo
 ```
 
-The demo is a local webserver enabling console interaction.
-
-Open the url in the console in two tabs and run `simpleDemo('alice', 3)` in one and `simpleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
-
 Requirements:
 - nodejs
 - [emscripten](https://emscripten.org/)
+
+### `consoleDemo`
+
+Open the url in the console in two tabs and run `consoleDemo('alice', 3)` in one and `consoleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
+
+### `wsDemo`
+
+Similar to `consoleDemo`, but you can use `wsDemo` without copying anything back and forth. You need to run the websocket relay server in the background though, using `./node_modules/.bin/tsx scripts/relayServer.ts`.
 
 ## Uncertain Changes
 

@@ -1,3 +1,4 @@
+import BufferedIO from "./BufferedIO";
 import BufferQueue from "./BufferQueue";
 import secure2PC from "./secure2PC";
 import { IO } from "./types";
@@ -6,7 +7,7 @@ const windowAny = window as any;
 
 windowAny.secure2PC = secure2PC;
 
-windowAny.simpleDemo = async function(
+windowAny.consoleDemo = async function(
   party: 'alice' | 'bob',
   input: number
 ): Promise<void> {
@@ -18,6 +19,62 @@ windowAny.simpleDemo = async function(
   );
 
   alert(numberFrom32Bits(bits));
+}
+
+windowAny.wsDemo = async function(
+  party: 'alice' | 'bob',
+  input: number,
+): Promise<void> {
+  const io = await makeWebSocketIO('ws://localhost:8175/demo');
+  
+  const bits = await secure2PC(
+    party,
+    add32BitCircuit,
+    numberTo32Bits(input),
+    io,
+  );
+
+  alert(numberFrom32Bits(bits));
+}
+
+async function makeWebSocketIO(url: string): Promise<IO> {
+  const sock = new WebSocket(url);
+  sock.binaryType = 'arraybuffer';
+
+  const openPromise = new Promise(resolve => {
+    sock.onopen = resolve;
+  });
+
+  const errorPromise = new Promise<never>((_resolve, reject) => {
+    sock.onerror = reject;
+  });
+
+  await Promise.race([openPromise, errorPromise]);
+
+  // You don't have to use BufferedIO, but it's a bit easier to use, otherwise
+  // you need to implement io.recv(len) returning a promise to exactly len
+  // bytes
+  const io = new BufferedIO(
+    (data: Uint8Array) => {
+      sock.send(data);
+    },
+  );
+
+  sock.onmessage = (event: MessageEvent) => {
+    if (!(event.data instanceof ArrayBuffer)) {
+      console.error('Unrecognized event.data');
+      return;
+    }
+
+    // Pass Uint8Arrays to io.accept
+    io.accept(new Uint8Array(event.data));
+  };
+
+  sock.onerror = (e) => {
+    io.emit('error', new Error(`WebSocket error: ${e}`));
+  };
+
+  return io;
 }
 
 /**
