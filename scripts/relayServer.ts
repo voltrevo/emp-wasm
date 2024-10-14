@@ -37,7 +37,7 @@ wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
         // Close connection if second client doesn't connect within 1 minute
         ws.close(1008, 'Second client did not connect in time');
         pairs.delete(pairingId);
-      }, 60000),
+      }, 5 * 60_000), // 5 minutes
     };
     pairs.set(pairingId, pair);
   } else if (pair.clients[1] === null) {

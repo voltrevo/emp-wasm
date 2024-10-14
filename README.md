@@ -104,13 +104,17 @@ Requirements:
 - nodejs
 - [emscripten](https://emscripten.org/)
 
+### `internalDemo`
+
+If you don't want to juggle multiple pages, you can do `await internalDemo(3, 5)` in the console, which will run two instances in the same page communicating internally.
+
 ### `consoleDemo`
 
 Open the url in the console in two tabs and run `consoleDemo('alice', 3)` in one and `consoleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
 
 ### `wsDemo`
 
-Similar to `consoleDemo`, but you can use `wsDemo` without copying anything back and forth. You need to run the websocket relay server in the background though, using `./node_modules/.bin/tsx scripts/relayServer.ts`.
+Open the url in the console in two tabs and run `await wsDemo('alice', 3)` in one and `await wsDemo('bob', 5)` in the other. This uses a websocket relay included in `npm run demo` and defined in `scripts/relayServer.ts`.
 
 ## Uncertain Changes
 

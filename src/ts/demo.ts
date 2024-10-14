@@ -7,6 +7,41 @@ const windowAny = window as any;
 
 windowAny.secure2PC = secure2PC;
 
+windowAny.internalDemo = async function(
+  aliceInput: number,
+  bobInput: number
+): Promise<{ alice: number, bob: number }> {
+  const aliceBq = new BufferQueue();
+  const bobBq = new BufferQueue();
+
+  const [aliceBits, bobBits] = await Promise.all([
+    secure2PC(
+      'alice',
+      add32BitCircuit,
+      numberTo32Bits(aliceInput),
+      {
+        send: data => bobBq.push(data),
+        recv: len => aliceBq.pop(len),
+      },
+    ),
+    secure2PC(
+      'bob',
+      add32BitCircuit,
+      numberTo32Bits(bobInput),
+      {
+        send: data => aliceBq.push(data),
+        recv: len => bobBq.pop(len),
+      },
+    ),
+  ]);
+
+  return {
+    alice: numberFrom32Bits(aliceBits),
+    bob: numberFrom32Bits(bobBits),
+  };
+}
+
+
 windowAny.consoleDemo = async function(
   party: 'alice' | 'bob',
   input: number
@@ -24,7 +59,7 @@ windowAny.consoleDemo = async function(
 windowAny.wsDemo = async function(
   party: 'alice' | 'bob',
   input: number,
-): Promise<void> {
+): Promise<number> {
   const io = await makeWebSocketIO('ws://localhost:8175/demo');
   
   const bits = await secure2PC(
@@ -34,7 +69,7 @@ windowAny.wsDemo = async function(
     io,
   );
 
-  alert(numberFrom32Bits(bits));
+  return numberFrom32Bits(bits);
 }
 
 async function makeWebSocketIO(url: string): Promise<IO> {
