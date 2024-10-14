@@ -64,20 +64,18 @@ int main(int argc, char** argv) {
     io.flush();
     cout << "dep:\t" << party << "\t" << time_from(t1) << endl;
 
-    int input_size = party == ALICE ? 0 : 512;
+    int input_size = party == ALICE ? 512 : 0;
     std::vector<bool> in(input_size);
 
-    if (party == BOB) {
+    if (party == ALICE) {
         // we need a single starting 1 for a valid sha-1 block
         // this will result in sha1("") == da39a3ee5e6b4b0d3255bfef95601890afd80709
         in[0] = true;
 
-        // also btw it's bob's input that matters for our circuit (see sha-1.txt)
         // 512 0   160
         // |   |   ^ 160 output bits
-        // |   ^ 0 input bits from Alice
-        // ^ 512 input bits from Bob
-        // (idk why but Bob's input comes first 🤷‍♂️)
+        // |   ^ 0 input bits from Bob
+        // ^ 512 input bits from Alice
     }
 
     t1 = clock_start();

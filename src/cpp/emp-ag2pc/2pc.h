@@ -246,8 +246,8 @@ public:
 
         block tmp;
         if(party == ALICE) {
-            send_partial_block<SSP>(io, mac, cf->n1);
-            for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
+            send_partial_block<SSP>(io, mac+cf->n1, cf->n2);
+            for(int i = 0; i < cf->n1; ++i) {
                 recv_partial_block<SSP>(io, &tmp, 1);
                 block ttt = key[i] ^ fpre->Delta;
                 ttt =  ttt & MASK;
@@ -260,7 +260,7 @@ public:
 				else throw std::runtime_error("no match! ALICE");
             }
         } else {
-            for(int i = 0; i < cf->n1; ++i) {
+            for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
                 recv_partial_block<SSP>(io, &tmp, 1);
                 block ttt = key[i] ^ fpre->Delta;
                 ttt =  ttt & MASK;
@@ -274,7 +274,7 @@ public:
 				else throw std::runtime_error(std::string("no match! BOB ") + std::to_string(i));
             }
 
-            send_partial_block<SSP>(io, mac+cf->n1, cf->n2);
+            send_partial_block<SSP>(io, mac, cf->n1);
         }
         io.flush();
     }
@@ -285,7 +285,7 @@ public:
     ) {
         std::vector<bool> output(cf->n3);
 
-        size_t correct_input_size = party == ALICE ? cf->n2 : cf->n1;
+        size_t correct_input_size = party == ALICE ? cf->n1 : cf->n2;
 
         if (input.size() != correct_input_size) {
             throw std::invalid_argument("input size does not match circuit");
@@ -299,12 +299,12 @@ public:
             check2(mac[i], key[i]);
 #endif
         if(party == ALICE) {
-            for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
-                mask_input[i] = logic_xor(input[i - cf->n1], getLSB(mac[i]));
+            for(int i = 0; i < cf->n1; ++i) {
+                mask_input[i] = logic_xor(input[i], getLSB(mac[i]));
                 mask_input[i] = logic_xor(mask_input[i], mask[i]);
             }
-            io.recv_data(mask_input, cf->n1);
-            io.send_data(mask_input+cf->n1, cf->n2);
+            io.recv_data(mask_input+cf->n1, cf->n2);
+            io.send_data(mask_input, cf->n1);
             for(int i = 0; i < cf->n1 + cf->n2; ++i) {
                 tmp = labels[i];
                 if(mask_input[i]) tmp = tmp ^ fpre->Delta;
@@ -313,12 +313,12 @@ public:
             //send output mask data
             send_partial_block<SSP>(io, mac+cf->num_wire - cf->n3, cf->n3);
         } else {
-            for(int i = 0; i < cf->n1; ++i) {
-                mask_input[i] = logic_xor(input[i], getLSB(mac[i]));
+            for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
+                mask_input[i] = logic_xor(input[i-cf->n1], getLSB(mac[i]));
                 mask_input[i] = logic_xor(mask_input[i], mask[i]);
             }
-            io.send_data(mask_input, cf->n1);
-            io.recv_data(mask_input+cf->n1, cf->n2);
+            io.send_data(mask_input+cf->n1, cf->n2);
+            io.recv_data(mask_input, cf->n1);
             io.recv_block(labels, cf->n1 + cf->n2);
         }
         int ands = 0;
