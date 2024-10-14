@@ -11,6 +11,8 @@ if [ ! -d "$BUILD_DIR" ]; then
   exit 1
 fi
 
+mkdir -p build
+
 # Emscripten build
 em++ programs/jslib.cpp -sASYNCIFY -o build/index.html \
   -O3 \

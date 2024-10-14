@@ -23,17 +23,18 @@ Requirements:
 ## Wasm
 
 ```sh
-./scripts/build_mbedtls.sh
-./scripts/build_wasm.sh
+npm install
+npm run build
 ```
 
-This generates `build/index.html` and some assets. To run it you'll need an http static file server, if you have nodejs, you can use `npx live-server build`.
+This generates `build/index.html` and some assets. Run it using `npx live-server build`.
 
-Currently it's a rather unpolished environment, but you can open this in two tabs and paste `src/consoleCode.js` into each console.
+Currently it's a rather unpolished environment, but you can open this in two tabs and paste `dist/src/ts/consoleCode.js` into each console.
 
 From there run `simpleDemo('alice', 3)` in one tab and `simpleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance. After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
 
 Requirements:
+- nodejs
 - [emscripten](https://emscripten.org/)
 - static http server
 

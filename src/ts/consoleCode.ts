@@ -320,7 +320,9 @@ function decodeBase64(base64Str: string): Uint8Array {
       decodedArray[i] = binaryStr.charCodeAt(i);
     }
   } catch (error) {
-    throw new Error('Failed to decode Base64 string: ' + error.message);
+    throw new Error(
+      'Failed to decode Base64 string: ' + (error as Error).message,
+    );
   }
 
   return decodedArray;
