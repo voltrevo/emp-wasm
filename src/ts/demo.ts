@@ -142,14 +142,35 @@ async function makePeerIO(pairingCode: string, party: 'alice' | 'bob') {
   let conn: DataConnection;
 
   if (party === 'alice') {
-    conn = await new Promise(resolve => peer.on('connection', resolve));
+    const connPromise = new Promise<DataConnection>(
+      resolve => peer.on('connection', resolve),
+    );
+
+    const notifyConn = peer.connect(`emp-wasm-${pairingCode}-bob`);
+    notifyConn.on('open', () => notifyConn.close());
+
+    conn = await connPromise;
   } else {
     conn = peer.connect(`emp-wasm-${pairingCode}-alice`);
+
+    await new Promise<void>((resolve, reject) => {
+      conn.on('open', resolve);
+      conn.on('error', reject);
+
+      peer.on('connection', (notifyConn) => {
+        notifyConn.close();
+        conn.close();
+
+        conn = peer.connect(`emp-wasm-${pairingCode}-alice`);
+        conn.on('open', resolve);
+        conn.on('error', reject);
+      });
+    });
   }
 
   const io = new BufferedIO(
     (data: Uint8Array) => conn.send(data),
-    () => conn.close(),
+    () => peer.destroy(),
   );
 
   conn.on('data', (data) => {
@@ -168,13 +189,6 @@ async function makePeerIO(pairingCode: string, party: 'alice' | 'bob') {
   });
 
   conn.on('close', () => io.close());
-
-  if (!conn.open) {
-    await new Promise<void>((resolve, reject) => {
-      conn.on('open', resolve);
-      conn.on('error', reject);
-    });
-  }
 
   return io;
 }
