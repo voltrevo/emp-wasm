@@ -28,7 +28,7 @@ em++ programs/jslib.cpp -sASYNCIFY -o build/jslib.js \
   -lmbedx509 \
   -lembind \
   -s SINGLE_FILE=1 \
-  -s ENVIRONMENT='web,worker' \
+  -s ENVIRONMENT='web,worker,node' \
   -sASSERTIONS=1 \
   -sSTACK_SIZE=8388608 \
   -sEXPORTED_FUNCTIONS=['_js_malloc','_main'] \

@@ -1,6 +1,9 @@
 import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
 import workerSrc from "./workerSrc";
+import nodeSecure2PC from "./nodeSecure2PC";
+
+export type Secure2PC = typeof secure2PC;
 
 export default function secure2PC(
   party: 'alice' | 'bob',
@@ -8,6 +11,10 @@ export default function secure2PC(
   input: Uint8Array,
   io: IO,
 ): Promise<Uint8Array> {
+  if (typeof Worker === 'undefined') {
+    return nodeSecure2PC(party, circuit, input, io);
+  }
+
   const ev = new EventEmitter<{ cleanup(): void }>();
 
   const result = new Promise<Uint8Array>((resolve, reject) => {

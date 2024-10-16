@@ -1,5 +1,6 @@
 *
 !dist/**
+!build/jslib.js
 !src/ts/**
 !package.json
 !LICENSE
