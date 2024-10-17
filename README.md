@@ -6,6 +6,10 @@ Wasm build of authenticated garbling from [emp-toolkit/emp-ag2pc](https://github
 
 ## Usage
 
+Take a look at [mpc-framework](https://github.com/voltrevo/mpc-framework) for a nicer API which utilizes emp-wasm as a dependency. In particular, it allows you to write your circuits in a TypeScript-like language called [summon](https://github.com/voltrevo/summon).
+
+Read on if you're more interested in what's going on under the hood and are prepared to use/write circuits like [these](./circuits) directly.
+
 ```sh
 npm install emp-wasm
 ```
