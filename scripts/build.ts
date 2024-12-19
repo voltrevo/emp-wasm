@@ -68,10 +68,25 @@ async function build() {
 async function getEmscriptenCode() {
   const gitRoot = await getGitRoot();
 
-  return await fs.readFile(
+  const raw = await fs.readFile(
     join(gitRoot, 'build/jslib.js'),
     'utf-8',
   );
+
+  const parts = raw.split('var fs=require("fs")');
+
+  if (parts.length === 1) {
+    throw new Error('Failed to find fs require');
+  }
+
+  const fixed = parts.join(
+    // This doesn't really affect behavior, but it fixes a nextjs issue where
+    // it analyzes the require statically and fails even when the code works as
+    // a whole.
+    'var fs=(()=>{try{return require("fs")}catch(e){throw e}})();'
+  );
+
+  return fixed;
 }
 
 async function getAppendWorkerCode() {
