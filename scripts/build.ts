@@ -38,6 +38,10 @@ async function build() {
 
   await shell('tsc', [], gitRoot);
 
+  // We need to fix this in the actual file rather than combining it with
+  // `getEmscriptenCode` because the file itself is used when loading in NodeJS.
+  await fixEmscriptenCode(gitRoot);
+
   const workerCode = [
     await getEmscriptenCode(),
     await getAppendWorkerCode(),
@@ -68,25 +72,10 @@ async function build() {
 async function getEmscriptenCode() {
   const gitRoot = await getGitRoot();
 
-  const raw = await fs.readFile(
+  return await fs.readFile(
     join(gitRoot, 'build/jslib.js'),
     'utf-8',
   );
-
-  const parts = raw.split('var fs=require("fs")');
-
-  if (parts.length === 1) {
-    throw new Error('Failed to find fs require');
-  }
-
-  const fixed = parts.join(
-    // This doesn't really affect behavior, but it fixes a nextjs issue where
-    // it analyzes the require statically and fails even when the code works as
-    // a whole.
-    'var fs=(()=>{try{return require("fs")}catch(e){throw e}})();'
-  );
-
-  return fixed;
 }
 
 async function getAppendWorkerCode() {
@@ -116,6 +105,30 @@ async function shell(cmd: string, args: string[], cwd: string): Promise<void> {
       }
     });
   });
+}
+
+async function fixEmscriptenCode(gitRoot: string) {
+  await replaceInFile(
+    join(gitRoot, 'build/jslib.js'),
+    'var fs=require("fs")',
+    // This doesn't really affect behavior, but it fixes a nextjs issue where
+    // it analyzes the require statically and fails even when the code works as
+    // a whole.
+    'var fs=(()=>{try{return require("fs")}catch(e){throw e}})();'
+  );
+}
+
+async function replaceInFile(path: string, search: string, replace: string) {
+  const content = await fs.readFile(path, 'utf-8');
+  const parts = content.split(search);
+
+  if (parts.length === 1) {
+    throw new Error(`Search string not found in file: ${search}`);
+  }
+
+  const updatedContent = parts.join(replace);
+
+  await fs.writeFile(path, updatedContent, 'utf-8');
 }
 
 build().catch(console.error);
