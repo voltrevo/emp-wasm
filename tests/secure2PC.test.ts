@@ -1,12 +1,5 @@
 import { expect } from 'chai';
-
-import type { BufferQueue as BQ } from '../src/ts';
-import type { Secure2PC } from '../src/ts/secure2PC';
-
-const { BufferQueue, secure2PC }: {
-  BufferQueue: { new(): BQ };
-  secure2PC: Secure2PC;
-} = require('../dist/src/ts/index' as any);
+import { BufferQueue, secure2PC } from "../"
 
 describe('Secure 2PC', () => {
   it('3 + 5 == 8', async () => {
