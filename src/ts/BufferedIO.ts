@@ -1,5 +1,5 @@
 import { EventEmitter } from "ee-typed";
-import BufferQueue from "./BufferQueue";
+import BufferQueue from "./BufferQueue.js";
 import { IO } from "./types";
 
 export default class BufferedIO
