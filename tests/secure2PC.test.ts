@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { BufferQueue, secure2PC } from "../"
+import { BufferQueue, secure2PC } from "../src/ts"
 
 describe('Secure 2PC', () => {
   it('3 + 5 == 8', async () => {

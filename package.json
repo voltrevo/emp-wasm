@@ -27,7 +27,7 @@
     "ws": "^8.18.0"
   },
   "dependencies": {
-    "ee-typed": "^0.1.0",
+    "ee-typed": "^0.1.1",
     "events": "^3.3.0"
   }
 }
