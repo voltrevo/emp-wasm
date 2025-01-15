@@ -11,6 +11,8 @@ type Module = {
   onRuntimeInitialized: () => void;
 };
 
+let running = false;
+
 declare const createModule: () => Promise<Module>
 
 /**
@@ -30,9 +32,11 @@ async function secure2PC(
 ): Promise<Uint8Array> {
   const module = await createModule();
 
-  if (module.emp) {
+  if (running) {
     throw new Error('Can only run one secure2PC at a time');
   }
+
+  running = true;
 
   const emp: { 
     circuit?: string; 
@@ -61,7 +65,7 @@ async function secure2PC(
   try {
     return await result;
   } finally {
-    module.emp = undefined;
+    running = false;
   }
 }
 

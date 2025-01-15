@@ -21,10 +21,6 @@ export default async function nodeSecure2PC(
 
   let module = await ((await import('../../build/jslib.js')).default());
 
-  if (module.emp) {
-    throw new Error('Can only run one secure2PC at a time');
-  }
-
   const emp: { 
     circuit?: string; 
     input?: Uint8Array; 
@@ -38,7 +34,7 @@ export default async function nodeSecure2PC(
   emp.input = input;
   emp.io = io;
 
-  const result = new Promise<Uint8Array>((resolve, reject) => {
+  const result = await new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
       // TODO: emp.handleError
@@ -49,11 +45,7 @@ export default async function nodeSecure2PC(
     }
   });
 
-  try {
-    return await result;
-  } finally {
-    module.emp = undefined;
-  }
+  return result;
 }
 
 /**
