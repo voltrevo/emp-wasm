@@ -15,34 +15,11 @@ export default async function nodeSecure2PC(
   input: Uint8Array,
   io: IO,
 ): Promise<Uint8Array> {
-  const req = typeof require === 'function' ? require : undefined;
-
-  if (!req) {
+  if (typeof process === 'undefined' || typeof process.versions === 'undefined' || !process.versions.node) {
     throw new Error('Not running in Node.js');
   }
 
-  const jslibPath = '../../../build/jslib.js';
-
-  delete req.cache[req.resolve(jslibPath)];
-  
-  const Module: {
-    emp?: {
-      circuit?: string;
-      input?: Uint8Array;
-      io?: IO;
-      handleOutput?: (value: Uint8Array) => void;
-    };
-    _run(party: number): void;
-    onRuntimeInitialized: () => void;
-  } = req('../../../build/jslib.js');
-
-  await new Promise<void>((resolve) => {
-    Module.onRuntimeInitialized = resolve;
-  });
-
-  if (Module.emp) {
-    throw new Error('Can only run one secure2PC at a time');
-  }
+  let module = await ((await import('../../build/jslib.js')).default());
 
   const emp: { 
     circuit?: string; 
@@ -51,28 +28,24 @@ export default async function nodeSecure2PC(
     handleOutput?: (value: Uint8Array) => void 
   } = {};
   
-  Module.emp = emp;
+  module.emp = emp;
 
   emp.circuit = circuit;
   emp.input = input;
   emp.io = io;
 
-  const result = new Promise<Uint8Array>((resolve, reject) => {
+  const result = await new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
       // TODO: emp.handleError
 
-      Module._run(partyToIndex(party));
+      module._run(partyToIndex(party));
     } catch (error) {
       reject(error);
     }
   });
 
-  try {
-    return await result;
-  } finally {
-    Module.emp = undefined;
-  }
+  return result;
 }
 
 /**

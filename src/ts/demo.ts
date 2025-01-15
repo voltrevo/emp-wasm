@@ -1,8 +1,8 @@
 import { DataConnection, Peer } from 'peerjs';
 
-import BufferedIO from "./BufferedIO";
-import BufferQueue from "./BufferQueue";
-import secure2PC from "./secure2PC";
+import BufferedIO from "./BufferedIO.js";
+import BufferQueue from "./BufferQueue.js";
+import secure2PC from "./secure2PC.js";
 import { IO } from "./types";
 
 const windowAny = window as any;

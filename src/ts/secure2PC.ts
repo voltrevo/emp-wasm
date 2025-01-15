@@ -1,7 +1,7 @@
 import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
-import workerSrc from "./workerSrc";
-import nodeSecure2PC from "./nodeSecure2PC";
+import workerSrc from "./workerSrc.js";
+import nodeSecure2PC from "./nodeSecure2PC.js";
 
 export type Secure2PC = typeof secure2PC;
 
@@ -18,7 +18,7 @@ export default function secure2PC(
   const ev = new EventEmitter<{ cleanup(): void }>();
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
-    const worker = new Worker(workerSrc);
+    const worker = new Worker(workerSrc, { type: 'module' });
     ev.on('cleanup', () => worker.terminate());
 
     io.on?.('error', reject);
