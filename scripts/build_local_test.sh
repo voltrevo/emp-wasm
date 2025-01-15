@@ -3,7 +3,7 @@
 clang++ \
     -O3 \
     -std=c++17 \
-    programs/2pc.cpp \
+    programs/test_2pc.cpp \
     -I src/cpp/ \
     -I $(brew --prefix mbedtls)/include \
     -L $(brew --prefix mbedtls)/lib \
