@@ -1,9 +1,6 @@
 #include <thread>
-#include "emp-tool/io/file_io_channel.h"
 #include "emp-tool/io/io_channel.h"
-#include "emp-tool/io/mem_io_channel.h"
 #include "emp-tool/io/net_io_channel.h"
-#include "emp-tool/io/highspeed_net_io_channel.h"
 
 #include "emp-tool/circuits/bit.h"
 #include "emp-tool/circuits/circuit_file.h"
@@ -27,10 +24,6 @@
 
 #include "emp-tool/gc/halfgate_eva.h"
 #include "emp-tool/gc/halfgate_gen.h"
-#include "emp-tool/gc/privacy_free_eva.h"
-#include "emp-tool/gc/privacy_free_gen.h"
 
 #include "emp-tool/execution/circuit_execution.h"
 #include "emp-tool/execution/protocol_execution.h"
-#include "emp-tool/execution/plain_circ.h"
-#include "emp-tool/execution/plain_prot.h"
