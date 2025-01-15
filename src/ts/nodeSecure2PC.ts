@@ -20,7 +20,7 @@ export default async function nodeSecure2PC(
     throw new Error('Not running in Node.js');
   }
 
-  let Module = await (await import('../../build/jslib.js')).default();
+  let Module = await ((await import('../../build/jslib.cjs')).default());
 
   if (Module.emp) {
     throw new Error('Can only run one secure2PC at a time');

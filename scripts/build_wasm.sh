@@ -33,5 +33,8 @@ em++ programs/jslib.cpp -sASYNCIFY -o build/jslib.js \
   -sSTACK_SIZE=8388608 \
   -sEXPORTED_FUNCTIONS=['_js_malloc','_main'] \
   -sEXPORTED_RUNTIME_METHODS=['HEAPU8','setValue'] \
-  -s MODULARIZE=1 -s EXPORT_ES6=1 \
-  -s EXPORT_NAME=EmscriptenModule
+  -s MODULARIZE=1
+  # -s EXPORT_ES6=1 \
+  # -s EXPORT_NAME=EmscriptenModule
+
+mv build/jslib.js build/jslib.cjs
