@@ -11,4 +11,4 @@ clang++ \
     -lssl \
     -o build/mpc
 
-echo "Build successful, use ./scripts/local_test.sh to run the program."
+echo "Build successful, use ./scripts/mpc_test.sh to run the program."

@@ -109,8 +109,8 @@ Open the url in the console in two tabs and run `await rtcDemo('pair-id', 'alice
 This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
 
 ```sh
-./scripts/build_local_test.sh
-./scripts/local_test.sh
+./scripts/build_2pc_test.sh
+./scripts/2pc_test.sh
 ```
 
 This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to Alice that Bob knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.

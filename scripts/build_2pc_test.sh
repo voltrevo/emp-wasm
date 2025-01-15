@@ -12,4 +12,4 @@ clang++ \
     -lmbedx509 \
     -o build/2pc
 
-echo "Build successful, use ./scripts/local_test.sh to run the program."
+echo "Build successful, use ./scripts/2pc_test.sh to run the program."
