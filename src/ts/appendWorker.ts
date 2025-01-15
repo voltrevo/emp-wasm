@@ -1,6 +1,6 @@
 import type { IO } from "./types";
 
-declare const Module: {
+type Module = {
   emp?: {
     circuit?: string;
     input?: Uint8Array;
@@ -11,9 +11,7 @@ declare const Module: {
   onRuntimeInitialized: () => void;
 };
 
-const wasmReady = new Promise<void>((resolve) => {
-  Module.onRuntimeInitialized = resolve;
-});
+declare const createModule: () => Promise<Module>
 
 /**
  * Runs a secure two-party computation (2PC) using a specified circuit.
@@ -30,9 +28,9 @@ async function secure2PC(
   input: Uint8Array,
   io: IO,
 ): Promise<Uint8Array> {
-  await wasmReady;
+  const module = await createModule();
 
-  if (Module.emp) {
+  if (module.emp) {
     throw new Error('Can only run one secure2PC at a time');
   }
 
@@ -43,7 +41,7 @@ async function secure2PC(
     handleOutput?: (value: Uint8Array) => void 
   } = {};
   
-  Module.emp = emp;
+  module.emp = emp;
 
   emp.circuit = circuit;
   emp.input = input;
@@ -54,7 +52,7 @@ async function secure2PC(
       emp.handleOutput = resolve;
       // TODO: emp.handleError
 
-      Module._run(partyToIndex(party));
+      module._run(partyToIndex(party));
     } catch (error) {
       reject(error);
     }
@@ -63,7 +61,7 @@ async function secure2PC(
   try {
     return await result;
   } finally {
-    Module.emp = undefined;
+    module.emp = undefined;
   }
 }
 

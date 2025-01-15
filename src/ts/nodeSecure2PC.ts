@@ -15,14 +15,13 @@ export default async function nodeSecure2PC(
   input: Uint8Array,
   io: IO,
 ): Promise<Uint8Array> {
-
   if (typeof process === 'undefined' || typeof process.versions === 'undefined' || !process.versions.node) {
     throw new Error('Not running in Node.js');
   }
 
-  let Module = await ((await import('../../build/jslib.cjs')).default());
+  let module = await ((await import('../../build/jslib.js')).default());
 
-  if (Module.emp) {
+  if (module.emp) {
     throw new Error('Can only run one secure2PC at a time');
   }
 
@@ -33,7 +32,7 @@ export default async function nodeSecure2PC(
     handleOutput?: (value: Uint8Array) => void 
   } = {};
   
-  Module.emp = emp;
+  module.emp = emp;
 
   emp.circuit = circuit;
   emp.input = input;
@@ -44,7 +43,7 @@ export default async function nodeSecure2PC(
       emp.handleOutput = resolve;
       // TODO: emp.handleError
 
-      Module._run(partyToIndex(party));
+      module._run(partyToIndex(party));
     } catch (error) {
       reject(error);
     }
@@ -53,7 +52,7 @@ export default async function nodeSecure2PC(
   try {
     return await result;
   } finally {
-    Module.emp = undefined;
+    module.emp = undefined;
   }
 }
 

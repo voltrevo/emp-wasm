@@ -73,7 +73,7 @@ async function getEmscriptenCode() {
   const gitRoot = await getGitRoot();
 
   return await fs.readFile(
-    join(gitRoot, 'build/jslib.cjs'),
+    join(gitRoot, 'build/jslib.js'),
     'utf-8',
   );
 }
@@ -109,7 +109,7 @@ async function shell(cmd: string, args: string[], cwd: string): Promise<void> {
 
 async function fixEmscriptenCode(gitRoot: string) {
   await replaceInFile(
-    join(gitRoot, 'build/jslib.cjs'),
+    join(gitRoot, 'build/jslib.js'),
     'var fs=require("fs")',
     // This doesn't really affect behavior, but it fixes a nextjs issue where
     // it analyzes the require statically and fails even when the code works as

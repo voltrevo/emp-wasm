@@ -18,7 +18,7 @@ export default function secure2PC(
   const ev = new EventEmitter<{ cleanup(): void }>();
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
-    const worker = new Worker(workerSrc);
+    const worker = new Worker(workerSrc, { type: 'module' });
     ev.on('cleanup', () => worker.terminate());
 
     io.on?.('error', reject);
