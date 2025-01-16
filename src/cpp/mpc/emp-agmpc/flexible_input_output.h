@@ -26,7 +26,6 @@ public:
     int party{};
 
     bool cmpc_associated = false;
-    ThreadPool* pool;
     bool *value;
     block *key[nP + 1];
     block *mac[nP + 1];
@@ -44,7 +43,6 @@ public:
     FlexIn(int len, int party) {
         this->len = len;
         this->party = party;
-        this->pool = pool;
 
         AuthBitShare<nP> empty_abit;
         memset(&empty_abit, 0, sizeof(AuthBitShare<nP>));
@@ -60,9 +58,8 @@ public:
         authenticated_share_assignment.clear();
     }
 
-    void associate_cmpc(ThreadPool *associated_pool, bool *associated_value, block *associated_mac[nP + 1], block *associated_key[nP + 1],  NetIOMP<nP> *associated_io, block associated_Delta) {
+    void associate_cmpc(bool *associated_value, block *associated_mac[nP + 1], block *associated_key[nP + 1],  NetIOMP<nP> *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
-        this->pool = associated_pool;
         this->value = associated_value;
         for(int j = 1; j <= nP; j++) {
             this->mac[j] = associated_mac[j];
@@ -139,49 +136,43 @@ public:
         /*
          * exchange the opening of the input mask
          */
-        vector<future<void>> res;
         for (int i = 1; i <= nP; ++i) {
             for (int j = 1; j <= nP; ++j) {
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_plaintext_input_recv, party2]() {
-                        io->recv_data(party2, open_bit_shares_for_plaintext_input_recv[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_plaintext_input_send, party2]() {
-                        io->send_data(party2, open_bit_shares_for_plaintext_input_send[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
+                    io->recv_data(party2, open_bit_shares_for_plaintext_input_recv[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->send_data(party2, open_bit_shares_for_plaintext_input_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
                 }
             }
         }
-        joinNclean(res);
 
         /*
          * verify the input mask
          */
-        vector<future<bool>> res_check;
+        vector<bool> res_check;
         for (int j = 1; j <= nP; ++j) {
             if(j != party) {
-                res_check.push_back(pool->enqueue([this, &input_mask, &open_bit_shares_for_plaintext_input_recv, j]() {
-                    for (int i = 0; i < len; i++) {
-                        if (party_assignment[i] == party) {
-                            block supposed_mac = Delta & select_mask[open_bit_shares_for_plaintext_input_recv[j][i].bit_share? 1 : 0];
-                            supposed_mac ^= input_mask[i].key[j];
+                bool check = false;
+                for (int i = 0; i < len; i++) {
+                    if (party_assignment[i] == party) {
+                        block supposed_mac = Delta & select_mask[open_bit_shares_for_plaintext_input_recv[j][i].bit_share? 1 : 0];
+                        supposed_mac ^= input_mask[i].key[j];
 
-                            block provided_mac = open_bit_shares_for_plaintext_input_recv[j][i].mac;
+                        block provided_mac = open_bit_shares_for_plaintext_input_recv[j][i].mac;
 
-                            if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
-                                return true;
-                            }
+                        if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
+                            check = true;
+                            break;
                         }
                     }
-                    return false;
-                }));
+                }
+                res_check.push_back(check);
             }
         }
-        if(joinNcleanCheat(res_check)) error("cheat in FlexIn's plaintext input mask!");
+        if(checkCheat(res_check)) error("cheat in FlexIn's plaintext input mask!");
 
         /*
          * broadcast the masked input
@@ -210,18 +201,13 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    res.push_back(pool->enqueue([this, &masked_input_recv, party2]() {
-                        io->recv_data(party2, masked_input_recv[party2].data(), sizeof(char) * len);
-                        io->flush(party2);
-                    }));
-                    res.push_back(pool->enqueue([this, &masked_input_sent, party2]() {
-                        io->send_data(party2, masked_input_sent.data(), sizeof(char) * len);
-                        io->flush(party2);
-                    }));
+                    io->recv_data(party2, masked_input_recv[party2].data(), sizeof(char) * len);
+                    io->flush(party2);
+                    io->send_data(party2, masked_input_sent.data(), sizeof(char) * len);
+                    io->flush(party2);
                 }
             }
         }
-        joinNclean(res);
 
         vector<bool> masked_input;
         masked_input.resize(len);
@@ -315,42 +301,37 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_authenticated_bits_recv, party2]() {
-                        io->recv_data(party2, open_bit_shares_for_authenticated_bits_recv[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_authenticated_bits_send, party2]() {
-                        io->send_data(party2, open_bit_shares_for_authenticated_bits_send[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
+                    io->recv_data(party2, open_bit_shares_for_authenticated_bits_recv[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->send_data(party2, open_bit_shares_for_authenticated_bits_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
                 }
             }
         }
-        joinNclean(res);
 
         /*
          * verify the input mask shares
          */
         for (int j = 1; j <= nP; ++j) {
             if(j != party) {
-                res_check.push_back(pool->enqueue([this, &authenticated_bitshares_new_circuit, &open_bit_shares_for_authenticated_bits_recv, j]() {
-                    for (int i = 0; i < len; i++) {
-                        if (party_assignment[i] == -1) {
-                            block supposed_mac = Delta & select_mask[open_bit_shares_for_authenticated_bits_recv[j][i].bit_share? 1 : 0];
-                            supposed_mac ^= authenticated_bitshares_new_circuit[i].key[j];
+                bool check = false;
+                for (int i = 0; i < len; i++) {
+                    if (party_assignment[i] == -1) {
+                        block supposed_mac = Delta & select_mask[open_bit_shares_for_authenticated_bits_recv[j][i].bit_share? 1 : 0];
+                        supposed_mac ^= authenticated_bitshares_new_circuit[i].key[j];
 
-                            block provided_mac = open_bit_shares_for_authenticated_bits_recv[j][i].mac;
+                        block provided_mac = open_bit_shares_for_authenticated_bits_recv[j][i].mac;
 
-                            if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
-                                return true;
-                            }
+                        if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
+                            check = true;
+                            break;
                         }
                     }
-                    return false;
-                }));
+                }
+                res_check.push_back(check);
             }
         }
-        if(joinNcleanCheat(res_check)) error("cheat in FlexIn's authenticated share input mask!");
+        if(checkCheat(res_check)) error("cheat in FlexIn's authenticated share input mask!");
 
         /*
          * Reconstruct the authenticated shares
@@ -393,18 +374,13 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_unauthenticated_bits_recv, party2]() {
-                        io->recv_data(party2, open_bit_shares_for_unauthenticated_bits_recv[party2].data(), sizeof(char) * len);
-                        io->flush(party2);
-                    }));
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_unauthenticated_bits_send, party2]() {
-                        io->send_data(party2, open_bit_shares_for_unauthenticated_bits_send.data(), sizeof(char) * len);
-                        io->flush(party2);
-                    }));
+                    io->recv_data(party2, open_bit_shares_for_unauthenticated_bits_recv[party2].data(), sizeof(char) * len);
+                    io->flush(party2);
+                    io->send_data(party2, open_bit_shares_for_unauthenticated_bits_send.data(), sizeof(char) * len);
+                    io->flush(party2);
                 }
             }
         }
-        joinNclean(res);
 
         /*
          * update the array of masked_input accordingly
@@ -457,42 +433,37 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_public_input_recv, party2]() {
-                        io->recv_data(party2, open_bit_shares_for_public_input_recv[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
-                    res.push_back(pool->enqueue([this, &open_bit_shares_for_public_input_send, party2]() {
-                        io->send_data(party2, open_bit_shares_for_public_input_send[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
+                    io->recv_data(party2, open_bit_shares_for_public_input_recv[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->send_data(party2, open_bit_shares_for_public_input_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
                 }
             }
         }
-        joinNclean(res);
 
         /*
          * verify the input mask
          */
         for (int j = 1; j <= nP; ++j) {
             if(j != party) {
-                res_check.push_back(pool->enqueue([this, &input_mask, &open_bit_shares_for_public_input_recv, j]() {
-                    for (int i = 0; i < len; i++) {
-                        if (party_assignment[i] == 0) {
-                            block supposed_mac = Delta & select_mask[open_bit_shares_for_public_input_recv[j][i].bit_share? 1 : 0];
-                            supposed_mac ^= input_mask[i].key[j];
+                bool check = false;
+                for (int i = 0; i < len; i++) {
+                    if (party_assignment[i] == 0) {
+                        block supposed_mac = Delta & select_mask[open_bit_shares_for_public_input_recv[j][i].bit_share? 1 : 0];
+                        supposed_mac ^= input_mask[i].key[j];
 
-                            block provided_mac = open_bit_shares_for_public_input_recv[j][i].mac;
+                        block provided_mac = open_bit_shares_for_public_input_recv[j][i].mac;
 
-                            if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
-                                return true;
-                            }
+                        if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
+                            check = true;
+                            break;
                         }
                     }
-                    return false;
-                }));
+                }
+                res_check.push_back(check);
             }
         }
-        if(joinNcleanCheat(res_check)) error("cheat in FlexIn's public input mask!");
+        if(checkCheat(res_check)) error("cheat in FlexIn's public input mask!");
 
         /*
          * update the masked input
@@ -535,7 +506,6 @@ public:
     int party{};
 
     bool cmpc_associated = false;
-    ThreadPool* pool;
     bool *value;
     block *key[nP + 1];
     block *mac[nP + 1];
@@ -554,7 +524,6 @@ public:
     FlexOut(int len, int party) {
         this->len = len;
         this->party = party;
-        this->pool = pool;
 
         AuthBitShare<nP> empty_abit;
         memset(&empty_abit, 0, sizeof(AuthBitShare<nP>));
@@ -570,9 +539,8 @@ public:
         authenticated_share_results.clear();
     }
 
-    void associate_cmpc(ThreadPool *associated_pool, bool *associated_value, block *associated_mac[nP + 1], block *associated_key[nP + 1], block *associated_eval_labels[nP + 1], block *associated_labels, NetIOMP<nP> *associated_io, block associated_Delta) {
+    void associate_cmpc(bool *associated_value, block *associated_mac[nP + 1], block *associated_key[nP + 1], block *associated_eval_labels[nP + 1], block *associated_labels, NetIOMP<nP> *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
-        this->pool = associated_pool;
         this->value = associated_value;
         this->labels = associated_labels;
         for (int j = 1; j <= nP; j++) {
@@ -615,8 +583,6 @@ public:
         vector<block> output_wire_label_recv;
         output_wire_label_recv.resize(len);
 
-        vector<future<void>> res;
-
         if(party == ALICE) {
             vector<vector<block>> output_wire_label_send;
             output_wire_label_send.resize(nP + 1);
@@ -629,12 +595,9 @@ public:
             }
 
             for(int j = 2; j <= nP; j++) {
-                res.push_back(pool->enqueue([this, &output_wire_label_send, j]() {
-                    io->send_data(j, output_wire_label_send[j].data(), sizeof(block) * len);
-                    io->flush(j);
-                }));
+                io->send_data(j, output_wire_label_send[j].data(), sizeof(block) * len);
+                io->flush(j);
             }
-            joinNclean(res);
         }else {
             io->recv_data(ALICE, output_wire_label_recv.data(), sizeof(block) * len);
             io->flush(ALICE);
@@ -707,43 +670,38 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    res.push_back(pool->enqueue([this, &output_mask_recv, party2]() {
-                        io->recv_data(party2, output_mask_recv[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
-                    res.push_back(pool->enqueue([this, &output_mask_send, party2]() {
-                        io->send_data(party2, output_mask_send[party2].data(), sizeof(BitWithMac) * len);
-                        io->flush(party2);
-                    }));
+                    io->recv_data(party2, output_mask_recv[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->send_data(party2, output_mask_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
                 }
             }
         }
-        joinNclean(res);
 
         /*
          * Verify the output mask
          */
-        vector<future<bool>> res_check;
+        vector<bool> res_check;
         for (int j = 1; j <= nP; ++j) {
             if(j != party) {
-                res_check.push_back(pool->enqueue([this, &output_mask_recv, j, output_shift]() {
-                    for (int i = 0; i < len; i++) {
-                        if (party_assignment[i] == party || party_assignment[i] == 0) {
-                            block supposed_mac = Delta & select_mask[output_mask_recv[j][i].bit_share? 1 : 0];
-                            supposed_mac ^= key[j][output_shift + i];
+                bool check = false;
+                for (int i = 0; i < len; i++) {
+                    if (party_assignment[i] == party || party_assignment[i] == 0) {
+                        block supposed_mac = Delta & select_mask[output_mask_recv[j][i].bit_share? 1 : 0];
+                        supposed_mac ^= key[j][output_shift + i];
 
-                            block provided_mac = output_mask_recv[j][i].mac;
+                        block provided_mac = output_mask_recv[j][i].mac;
 
-                            if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
-                                return true;
-                            }
+                        if(!cmpBlock(&supposed_mac, &provided_mac, 1)) {
+                            check = true;
+                            break;
                         }
                     }
-                    return false;
-                }));
+                }
+                res_check.push_back(check);
             }
         }
-        if(joinNcleanCheat(res_check)) error("cheat in FlexOut's output mask!");
+        if(checkCheat(res_check)) error("cheat in FlexOut's output mask!");
 
         /*
          * Handle the case party_assignment[] = -1

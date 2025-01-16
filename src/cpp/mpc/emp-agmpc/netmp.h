@@ -2,6 +2,7 @@
 #define NETIOMP_H
 #include <unistd.h>
 #include <emp-tool/emp-tool.h>
+#include <emp-tool/io/net_io.h>
 #include "cmpc_config.h"
 using namespace emp;
 

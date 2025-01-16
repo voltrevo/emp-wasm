@@ -10,7 +10,6 @@
 using namespace emp;
 template<int nP>
 class FpreMP { public:
-    ThreadPool *pool;
     int party;
     NetIOMP<nP> * io;
     ABitMP<nP>* abit;
@@ -20,12 +19,11 @@ class FpreMP { public:
     PRG * prgs;
     PRG prg;
     int ssp;
-    FpreMP(NetIOMP<nP> * io[2], ThreadPool * pool, int party, bool * _delta = nullptr, int ssp = 40) {
+    FpreMP(NetIOMP<nP> * io[2], int party, bool * _delta = nullptr, int ssp = 40) {
         this->party = party;
-        this->pool = pool;
         this->io = io[0];
         this ->ssp = ssp;
-        abit = new ABitMP<nP>(io[1], pool, party, _delta, ssp);
+        abit = new ABitMP<nP>(io[1], party, _delta, ssp);
         Delta = abit->Delta;
         prps = new CRH[nP+1];
         prps2 = new CRH[nP+1];
@@ -71,31 +69,25 @@ class FpreMP { public:
         prg.random_bool(tr, length*bucket_size*3+3*ssp);
         // memset(tr, false, length*bucket_size*3+3*ssp);
         abit->compute(tMAC, tKEY, tr, length*bucket_size*3 + 3*ssp);
-        vector<future<void>>     res;
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j ) {
             if(i == party) {
-                res.push_back(pool->enqueue([this, tKEY, tr, s, length, bucket_size, j]() {
-                    prgs[j].random_bool(s[j], length*bucket_size);
-                    for(int k = 0; k < length*bucket_size; ++k) {
-                        uint8_t data = garble(tKEY[j], tr, s[j], k, j);
-                        io->send_data(j, &data, 1);
-                        s[j][k] = (s[j][k] != (tr[3*k] and tr[3*k+1]));
-                    }
-                    io->flush(j);
-                }));
+                prgs[j].random_bool(s[j], length*bucket_size);
+                for(int k = 0; k < length*bucket_size; ++k) {
+                    uint8_t data = garble(tKEY[j], tr, s[j], k, j);
+                    io->send_data(j, &data, 1);
+                    s[j][k] = (s[j][k] != (tr[3*k] and tr[3*k+1]));
+                }
+                io->flush(j);
             } else if (j == party) {
-                res.push_back(pool->enqueue([this, tMAC, tr, s, length, bucket_size, i]() {
-                    for(int k = 0; k < length*bucket_size; ++k) {
-                        uint8_t data = 0;
-                        io->recv_data(i, &data, 1);
-                        bool tmp = evaluate(data, tMAC[i], tr, k, i);
-                        s[i][k] = (tmp != (tr[3*k] and tr[3*k+1]));
-                    }
-                }));
+                for(int k = 0; k < length*bucket_size; ++k) {
+                    uint8_t data = 0;
+                    io->recv_data(i, &data, 1);
+                    bool tmp = evaluate(data, tMAC[i], tr, k, i);
+                    s[i][k] = (tmp != (tr[3*k] and tr[3*k+1]));
+                }
             }
         }
-        joinNclean(res);
         for(int k = 0; k < length*bucket_size; ++k) {
             s[0][k] = (tr[3*k] and tr[3*k+1]);
             for(int i = 1; i <= nP; ++i)
@@ -111,26 +103,22 @@ class FpreMP { public:
 #endif
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, e, length, bucket_size, party2]() {
-                io->send_data(party2, e, length*bucket_size);
-                io->flush(party2);
-            }));
-            res.push_back(pool->enqueue([this, tKEY, length, bucket_size, party2]() {
-                bool * tmp = new bool[length*bucket_size];
-                io->recv_data(party2, tmp, length*bucket_size);
-                for(int k = 0; k < length*bucket_size; ++k) {
-                    if(tmp[k])
-                        tKEY[party2][3*k+2] = tKEY[party2][3*k+2] ^ Delta;
-                }
-                delete[] tmp;
-            }));
+
+            io->send_data(party2, e, length*bucket_size);
+            io->flush(party2);
+
+            bool * tmp = new bool[length*bucket_size];
+            io->recv_data(party2, tmp, length*bucket_size);
+            for(int k = 0; k < length*bucket_size; ++k) {
+                if(tmp[k])
+                    tKEY[party2][3*k+2] = tKEY[party2][3*k+2] ^ Delta;
+            }
+            delete[] tmp;
         }
-        joinNclean(res);
 #ifdef __debug
         check_MAC(io, tMAC, tKEY, tr, Delta, length*bucket_size*3, party);
 #endif
-        auto ret = abit->check(tMAC, tKEY, tr, length*bucket_size*3 + 3*ssp);
-        ret.get();
+        abit->check(tMAC, tKEY, tr, length*bucket_size*3 + 3*ssp);
         //check compute phi
         for(int k = 0; k < length*bucket_size; ++k) {
             phi[k] = zero_block;
@@ -143,7 +131,8 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, tKEY, tKEYphi, phi, length, bucket_size, party2]() {
+
+            {
                 block bH[2], tmpH[2];
                 for(int k = 0; k < length*bucket_size; ++k) {
                     bH[0] = tKEY[party2][3*k];
@@ -155,8 +144,9 @@ class FpreMP { public:
                     io->send_data(party2, &bH[1], sizeof(block));
                 }
                 io->flush(party2);
-            }));
-            res.push_back(pool->enqueue([this, tMAC, tMACphi, tr, length, bucket_size, party2]() {
+            }
+
+            {
                 block bH;
                 for(int k = 0; k < length*bucket_size; ++k) {
                     io->recv_data(party2, &bH, sizeof(block));
@@ -164,9 +154,8 @@ class FpreMP { public:
                     tMACphi[party2][k] = prps2[party2].H(hin);
                     if(tr[3*k])tMACphi[party2][k] = tMACphi[party2][k] ^ bH;
                 }
-            }));
+            }
         }
-        joinNclean(res);
 
         bool * xs = new bool[length*bucket_size];
         for(int i = 0; i < length*bucket_size; ++i) xs[i] = tr[3*i];
@@ -191,7 +180,7 @@ class FpreMP { public:
         check_zero(tKEYphi[party], length*bucket_size);
 #endif
 
-        block prg_key = sampleRandom(io, &prg, pool, party);
+        block prg_key = sampleRandom(io, &prg, party);
         PRG prgf(&prg_key);
         char (*dgst)[Hash::DIGEST_SIZE] = new char[nP+1][Hash::DIGEST_SIZE];
         bool * tmp = new bool[length*bucket_size];
@@ -203,25 +192,21 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, dgst, party2]() {
-                io->send_data(party2, dgst[party], Hash::DIGEST_SIZE);
-                io->recv_data(party2, dgst[party2], Hash::DIGEST_SIZE);
-            }));
+            io->send_data(party2, dgst[party], Hash::DIGEST_SIZE);
+            io->recv_data(party2, dgst[party2], Hash::DIGEST_SIZE);
         }
-        joinNclean(res);
-        vector<future<bool>>    res2;
+
+        vector<bool> res2;
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res2.push_back(pool->enqueue([this, X, dgst, party2]() -> bool {
-                io->send_data(party2, X[party], sizeof(block)*ssp);
-                io->recv_data(party2, X[party2], sizeof(block)*ssp);
-                char tmp[Hash::DIGEST_SIZE];
-                Hash::hash_once(tmp, X[party2], sizeof(block)*ssp);
-                return strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0;
-            }));
+            io->send_data(party2, X[party], sizeof(block)*ssp);
+            io->recv_data(party2, X[party2], sizeof(block)*ssp);
+            char tmp[Hash::DIGEST_SIZE];
+            Hash::hash_once(tmp, X[party2], sizeof(block)*ssp);
+            res2.push_back(strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0);
         }
-        if(joinNcleanCheat(res2)) error("commitment");
+        if(checkCheat(res2)) error("commitment");
 
         for(int i = 2; i <= nP; ++i)
             xorBlocks_arr(X[1], X[1], X[i], ssp);
@@ -229,7 +214,7 @@ class FpreMP { public:
         if(!cmpBlock(X[1], X[2], ssp)) error("AND check");
 
         //land -> and
-        block S = sampleRandom<nP>(io, &prg, pool, party);
+        block S = sampleRandom<nP>(io, &prg, party);
 
         int * ind = new int[length*bucket_size];
         int *location = new int[length*bucket_size];
@@ -272,15 +257,10 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, d, length, bucket_size, party2]() {
-                io->send_data(party2, d[party], (bucket_size-1)*length);
-                io->flush(party2);
-            }));
-            res.push_back(pool->enqueue([this, d, length, bucket_size, party2]() {
-                io->recv_data(party2, d[party2], (bucket_size-1)*length);
-            }));
+            io->send_data(party2, d[party], (bucket_size-1)*length);
+            io->flush(party2);
+            io->recv_data(party2, d[party2], (bucket_size-1)*length);
         }
-        joinNclean(res);
         for(int i = 2; i <= nP; ++i)
             for(int j = 0; j <  (bucket_size-1)*length; ++j)
                 d[1][j] = d[1][j]!=d[i][j];

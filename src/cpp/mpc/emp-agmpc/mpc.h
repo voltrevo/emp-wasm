@@ -33,7 +33,6 @@ class CMPC { public:
     NetIOMP<nP> * io;
     int num_ands = 0, num_in;
     int party, total_pre, ssp;
-    ThreadPool * pool;
     block Delta;
 
     block (*GTM)[4][nP+1];
@@ -42,12 +41,11 @@ class CMPC { public:
     block (*GT)[nP+1][4][nP+1];
     block * eval_labels[nP+1];
     PRP prp;
-    CMPC(NetIOMP<nP> * io[2], ThreadPool * pool, int party, BristolFormat * cf, bool * _delta = nullptr, int ssp = 40) {
+    CMPC(NetIOMP<nP> * io[2], int party, BristolFormat * cf, bool * _delta = nullptr, int ssp = 40) {
         this->party = party;
         this->io = io[0];
         this->cf = cf;
         this->ssp = ssp;
-        this->pool = pool;
 
         for(int i = 0; i < cf->num_gate; ++i) {
             if (cf->gates[4*i+3] == AND_GATE)
@@ -55,7 +53,7 @@ class CMPC { public:
         }
         num_in = cf->n1+cf->n2;
         total_pre = num_in + num_ands + 3*ssp;
-        fpre = new FpreMP<nP>(io, pool, party, _delta, ssp);
+        fpre = new FpreMP<nP>(io, party, _delta, ssp);
         Delta = fpre->Delta;
 
         if(party == 1) {
@@ -117,8 +115,7 @@ class CMPC { public:
 
         prg.random_bool(preprocess_value, total_pre);
         fpre->abit->compute(preprocess_mac, preprocess_key, preprocess_value, total_pre);
-        auto ret = fpre->abit->check(preprocess_mac, preprocess_key, preprocess_value, total_pre);
-        ret.get();
+        fpre->abit->check(preprocess_mac, preprocess_key, preprocess_value, total_pre);
 
         for(int i = 1; i <= nP; ++i) {
             memcpy(key[i], preprocess_key[i], num_in * sizeof(block));
@@ -185,20 +182,16 @@ class CMPC { public:
             }
         }
 
-        vector<future<void>>     res;
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, x, y, party2]() {
-                io->send_data(party2, x[party], num_ands);
-                io->send_data(party2, y[party], num_ands);
-                io->flush(party2);
-            }));
-            res.push_back(pool->enqueue([this, x, y, party2]() {
-                io->recv_data(party2, x[party2], num_ands);
-                io->recv_data(party2, y[party2], num_ands);
-            }));
+
+            io->send_data(party2, x[party], num_ands);
+            io->send_data(party2, y[party], num_ands);
+            io->flush(party2);
+
+            io->recv_data(party2, x[party2], num_ands);
+            io->recv_data(party2, y[party2], num_ands);
         }
-        joinNclean(res);
         for(int i = 2; i <= nP; ++i) for(int j = 0; j < num_ands; ++j) {
             x[1][j] = x[1][j] != x[i][j];
             y[1][j] = y[1][j] != y[i][j];
@@ -290,11 +283,9 @@ class CMPC { public:
         } else {
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, party2]() {
-                    for(int i = 0; i < num_ands; ++i)
-                        for(int j = 0; j < 4; ++j)
-                            io->recv_data(party2, GT[i][party2][j]+1, sizeof(block)*(nP));
-                }));
+                for(int i = 0; i < num_ands; ++i)
+                    for(int j = 0; j < 4; ++j)
+                        io->recv_data(party2, GT[i][party2][j]+1, sizeof(block)*(nP));
             }
             for(int i = 0; i < cf->num_gate; ++i) if(cf->gates[4*i+3] == AND_GATE) {
                 r[0] = sigma_value[ands] != value[cf->gates[4*i+2]];
@@ -319,7 +310,6 @@ class CMPC { public:
                 memcpy(GTv[ands], r, sizeof(bool)*4);
                 ++ands;
             }
-            joinNclean(res);
         }
         for(int i = 1; i <= nP; ++i) {
             delete[] x[i];
@@ -338,25 +328,18 @@ class CMPC { public:
         } else {
             bool * tmp[nP+1];
             for(int i = 2; i <= nP; ++i) tmp[i] = new bool[num_in];
-            vector<future<void>> res;
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, tmp, party2]() {
-                    io->recv_data(party2, tmp[party2], num_in);
-                }));
+                io->recv_data(party2, tmp[party2], num_in);
             }
-            joinNclean(res);
             for(int i = 0; i < num_in; ++i)
                 for(int j = 2; j <= nP; ++j)
                     mask_input[i] = tmp[j][i] != mask_input[i];
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, mask_input, party2]() {
-                    io->send_data(party2, mask_input, num_in);
-                    io->flush(party2);
-                }));
+                io->send_data(party2, mask_input, num_in);
+                io->flush(party2);
             }
-            joinNclean(res);
             for(int i = 2; i <= nP; ++i) delete[] tmp[i];
         }
 
@@ -368,14 +351,10 @@ class CMPC { public:
             }
             io->flush(1);
         } else {
-            vector<future<void>> res;
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, party2]() {
-                    io->recv_data(party2, eval_labels[party2], num_in*sizeof(block));
-                }));
+                io->recv_data(party2, eval_labels[party2], num_in*sizeof(block));
             }
-            joinNclean(res);
 
             int ands = 0;
             for(int i = 0; i < cf->num_gate; ++i) {
@@ -416,17 +395,13 @@ class CMPC { public:
             io->send_data(1, value+cf->num_wire - cf->n3, cf->n3);
             io->flush(1);
         } else {
-            vector<future<void>> res;
             bool * tmp[nP+1];
             for(int i = 2; i <= nP; ++i)
                 tmp[i] = new bool[cf->n3];
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, tmp, party2]() {
-                    io->recv_data(party2, tmp[party2], cf->n3);
-                }));
+                io->recv_data(party2, tmp[party2], cf->n3);
             }
-            joinNclean(res);
             for(int i = 0; i < cf->n3; ++i)
                 for(int j = 2; j <= nP; ++j)
                     mask_input[cf->num_wire - cf->n3 + i] = tmp[j][i] != mask_input[cf->num_wire - cf->n3 + i];
@@ -477,18 +452,20 @@ class CMPC { public:
         memcpy(input_mask[party], value+start[party], end[party] - start[party]);
         memcpy(input_mask[0], input+start[party], end[party] - start[party]);
 
-        vector<future<bool>> res;
+        vector<bool> res;
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, start, end, party2]() {
+
+            {
                 char dig[Hash::DIGEST_SIZE];
                 io->send_data(party2, value+start[party2], end[party2]-start[party2]);
                 emp::Hash::hash_once(dig, mac[party2]+start[party2], (end[party2]-start[party2])*sizeof(block));
                 io->send_data(party2, dig, Hash::DIGEST_SIZE);
                 io->flush(party2);
-                return false;
-            }));
-            res.push_back(pool->enqueue([this, start, end, input_mask, party2]() {
+                res.push_back(false);
+            }
+
+            {
                 char dig[Hash::DIGEST_SIZE];
                 char dig2[Hash::DIGEST_SIZE];
                 io->recv_data(party2, input_mask[party2], end[party]-start[party]);
@@ -500,37 +477,29 @@ class CMPC { public:
                 emp::Hash::hash_once(dig2, tmp, (end[party]-start[party])*sizeof(block));
                 io->recv_data(party2, dig, Hash::DIGEST_SIZE);
                 delete[] tmp;
-                return strncmp(dig, dig2, Hash::DIGEST_SIZE) != 0;
-            }));
+                res.push_back(strncmp(dig, dig2, Hash::DIGEST_SIZE) != 0);
+            }
         }
-        if(joinNcleanCheat(res)) error("cheat!");
+        if(checkCheat(res)) error("cheat!");
         for(int i = 1; i <= nP; ++i)
             for(int j = 0; j < end[party] - start[party]; ++j)
                 input_mask[0][j] = input_mask[0][j] != input_mask[i][j];
-
 
         if(party != 1) {
             io->send_data(1, input_mask[0], end[party] - start[party]);
             io->flush(1);
             io->recv_data(1, mask_input, num_in);
         } else {
-            vector<future<void>> res;
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, mask_input, start, end , party2]() {
-                    io->recv_data(party2, mask_input+start[party2], end[party2] - start[party2]);
-                }));
+                io->recv_data(party2, mask_input+start[party2], end[party2] - start[party2]);
             }
-            joinNclean(res);
             memcpy(mask_input, input_mask[0], end[1]-start[1]);
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, mask_input, party2]() {
-                    io->send_data(party2, mask_input, num_in);
-                    io->flush(party2);
-                }));
+                io->send_data(party2, mask_input, num_in);
+                io->flush(party2);
             }
-            joinNclean(res);
         }
 
         if(party!= 1) {
@@ -541,14 +510,10 @@ class CMPC { public:
             }
             io->flush(1);
         } else {
-            vector<future<void>> res;
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, party2]() {
-                    io->recv_data(party2, eval_labels[party2], num_in*sizeof(block));
-                }));
+                io->recv_data(party2, eval_labels[party2], num_in*sizeof(block));
             }
-            joinNclean(res);
 
             int ands = 0;
             for(int i = 0; i < cf->num_gate; ++i) {
@@ -589,17 +554,13 @@ class CMPC { public:
             io->send_data(1, value+cf->num_wire - cf->n3, cf->n3);
             io->flush(1);
         } else {
-            vector<future<void>> res;
             bool * tmp[nP+1];
             for(int i = 2; i <= nP; ++i)
                 tmp[i] = new bool[cf->n3];
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, tmp, party2]() {
-                    io->recv_data(party2, tmp[party2], cf->n3);
-                }));
+                io->recv_data(party2, tmp[party2], cf->n3);
             }
-            joinNclean(res);
             for(int i = 0; i < cf->n3; ++i)
                 for(int j = 2; j <= nP; ++j)
                     mask_input[cf->num_wire - cf->n3 + i] = tmp[j][i] != mask_input[cf->num_wire - cf->n3 + i];
@@ -614,7 +575,7 @@ class CMPC { public:
 
     void online (FlexIn<nP> * input, FlexOut<nP> *output) {
         bool * mask_input = new bool[cf->num_wire];
-        input->associate_cmpc(pool, value, mac, key, io, Delta);
+        input->associate_cmpc(value, mac, key, io, Delta);
         input->input(mask_input);
 
         if(party!= 1) {
@@ -625,14 +586,10 @@ class CMPC { public:
             }
             io->flush(1);
         } else {
-            vector<future<void>> res;
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                res.push_back(pool->enqueue([this, party2]() {
-                    io->recv_data(party2, eval_labels[party2], num_in*sizeof(block));
-                }));
+                io->recv_data(party2, eval_labels[party2], num_in*sizeof(block));
             }
-            joinNclean(res);
 
             int ands = 0;
             for(int i = 0; i < cf->num_gate; ++i) {
@@ -670,7 +627,7 @@ class CMPC { public:
             }
         }
 
-        output->associate_cmpc(pool, value, mac, key, eval_labels, labels, io, Delta);
+        output->associate_cmpc(value, mac, key, eval_labels, labels, io, Delta);
         output->output(mask_input, cf->num_wire - cf->n3);
 
         delete[] mask_input;

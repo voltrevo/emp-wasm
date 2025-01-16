@@ -14,10 +14,9 @@ int main(int argc, char** argv) {
     NetIOMP<nP> io(party, port);
     NetIOMP<nP> io2(party, port+2*(nP+1)*(nP+1)+1);
     NetIOMP<nP> *ios[2] = {&io, &io2};
-    ThreadPool pool(4);
     BristolFormat cf(circuit_file_location.c_str());
 
-    CMPC<nP>* mpc = new CMPC<nP>(ios, &pool, party, &cf);
+    CMPC<nP>* mpc = new CMPC<nP>(ios, party, &cf);
     cout <<"Setup:\t"<<party<<"\n";
 
     mpc->function_independent();

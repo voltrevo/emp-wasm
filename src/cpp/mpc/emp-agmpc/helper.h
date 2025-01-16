@@ -61,10 +61,9 @@ void joinNclean(vector<future<T>>& res) {
     res.clear();
 }
 
-bool joinNcleanCheat(vector<future<bool>>& res) {
+bool checkCheat(vector<bool>& res) {
     bool cheat = false;
-    for(auto &v: res) cheat = cheat or v.get();
-    res.clear();
+    for(auto v: res) cheat = cheat or v;
     return cheat;
 }
 
@@ -83,9 +82,8 @@ void recv_partial_block(IOChannel& io, block * data, int length) {
 }
 
 template<int nP>
-block sampleRandom(NetIOMP<nP> * io, PRG * prg, ThreadPool * pool, int party) {
-    vector<future<void>> res;
-    vector<future<bool>> res2;
+block sampleRandom(NetIOMP<nP> * io, PRG * prg, int party) {
+    vector<bool> res2;
     char (*dgst)[Hash::DIGEST_SIZE] = new char[nP+1][Hash::DIGEST_SIZE];
     block *S = new block[nP+1];
     prg->random_block(&S[party], 1);
@@ -93,23 +91,19 @@ block sampleRandom(NetIOMP<nP> * io, PRG * prg, ThreadPool * pool, int party) {
 
     for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
         int party2 = i + j - party;
-        res.push_back(pool->enqueue([dgst, io, party, party2]() {
-            io->send_data(party2, dgst[party], Hash::DIGEST_SIZE);
-            io->recv_data(party2, dgst[party2], Hash::DIGEST_SIZE);
-        }));
+        io->send_data(party2, dgst[party], Hash::DIGEST_SIZE);
+        io->recv_data(party2, dgst[party2], Hash::DIGEST_SIZE);
     }
-    joinNclean(res);
     for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
         int party2 = i + j - party;
-        res2.push_back(pool->enqueue([io, S, dgst, party, party2]() -> bool {
-            io->send_data(party2, &S[party], sizeof(block));
-            io->recv_data(party2, &S[party2], sizeof(block));
-            char tmp[Hash::DIGEST_SIZE];
-            Hash::hash_once(tmp, &S[party2], sizeof(block));
-            return strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0;
-        }));
+        io->send_data(party2, &S[party], sizeof(block));
+        io->recv_data(party2, &S[party2], sizeof(block));
+        char tmp[Hash::DIGEST_SIZE];
+        Hash::hash_once(tmp, &S[party2], sizeof(block));
+        bool cheat = strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0;
+        res2.push_back(cheat);
     }
-    bool cheat = joinNcleanCheat(res2);
+    bool cheat = checkCheat(res2);
     if(cheat) {
         cout <<"cheat in sampleRandom\n"<<flush;
         exit(0);

@@ -10,17 +10,15 @@ class ABitMP { public:
     IKNP *abit1[nP+1];
     IKNP *abit2[nP+1];
     NetIOMP<nP> *io;
-    ThreadPool * pool;
     int party;
     PRG prg;
     block Delta;
     Hash hash;
     int ssp;
     block * pretable;
-    ABitMP(NetIOMP<nP>* io, ThreadPool * pool, int party, bool * _tmp = nullptr, int ssp = 40) {
+    ABitMP(NetIOMP<nP>* io, int party, bool * _tmp = nullptr, int ssp = 40) {
         this->ssp = ssp;
         this->io = io;
-        this->pool = pool;
         this->party = party;
         bool tmp[128];
         if(_tmp == nullptr) {
@@ -39,29 +37,21 @@ class ABitMP { public:
             }
         }
 
-        vector<future<void>> res;//relic multi-thread problems...
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
             if(i == party) {
-                res.push_back(pool->enqueue([this, io, tmp, j]() {
-                    abit1[j]->setup_send(tmp);
-                    io->flush(j);
-                }));
-                res.push_back(pool->enqueue([this, io, j]() {
-                    abit2[j]->setup_recv();
-                    io->flush(j);
-                }));
+                abit1[j]->setup_send(tmp);
+                io->flush(j);
+
+                abit2[j]->setup_recv();
+                io->flush(j);
             } else if (j == party) {
-                res.push_back(pool->enqueue([this, io, i]() {
-                    abit2[i]->setup_recv();
-                    io->flush(i);
-                }));
-                res.push_back(pool->enqueue([this, io, tmp, i]() {
-                    abit1[i]->setup_send(tmp);
-                    io->flush(i);
-                }));
+                abit2[i]->setup_recv();
+                io->flush(i);
+
+                abit1[i]->setup_send(tmp);
+                io->flush(i);
             }
         }
-        joinNclean(res);
 
         if(party == 1)
             Delta = abit1[2]->Delta;
@@ -75,34 +65,27 @@ class ABitMP { public:
         }
     }
     void compute(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
-        vector<future<void>> res;
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, KEY, length, party2]() {
-                abit1[party2]->send_cot(KEY[party2], length);
-                io->flush(party2);
-            }));
-            res.push_back(pool->enqueue([this, MAC, data, length, party2]() {
-                abit2[party2]->recv_cot(MAC[party2], data, length);
-                io->flush(party2);
-            }));
+
+            abit1[party2]->send_cot(KEY[party2], length);
+            io->flush(party2);
+
+            abit2[party2]->recv_cot(MAC[party2], data, length);
+            io->flush(party2);
         }
-        joinNclean(res);
 #ifdef __debug
         check_MAC(io, MAC, KEY, data, Delta, length, party);
 #endif
     }
 
-    future<void> check(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
-        future<void> ret = pool->enqueue([this, MAC, KEY, data, length](){
-            check1(MAC, KEY, data, length);
-            check2(MAC, KEY, data, length);
-        });
-        return ret;
+    void check(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
+        check1(MAC, KEY, data, length);
+        check2(MAC, KEY, data, length);
     }
 
     void check1(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
-        block seed = sampleRandom(io, &prg, pool, party);
+        block seed = sampleRandom(io, &prg, party);
         PRG prg2(&seed);
         uint8_t * tmp;
         block * Ms[nP+1];
@@ -167,27 +150,25 @@ class ABitMP { public:
             }
         }
         delete[] tmp;
-        vector<future<bool>> res;
+        vector<bool> res;
         //TODO: they should not need to send MACs.
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, Ms, bs, party2]()->bool {
-                io->send_data(party2, Ms[party2], sizeof(block)*ssp);
-                io->send_data(party2, bs[party2], ssp);
-                io->flush(party2);
-                return false;
-            }));
-            res.push_back(pool->enqueue([this, tMs, tbs, Ks, party2]()->bool {
-                io->recv_data(party2, tMs[party2], sizeof(block)*ssp);
-                io->recv_data(party2, tbs[party2], ssp);
-                for(int k = 0; k < ssp; ++k) {
-                    if(tbs[party2][k])
-                        Ks[party2][k] = Ks[party2][k] ^ Delta;
-                }
-                return !cmpBlock(Ks[party2], tMs[party2], ssp);
-            }));
+
+            io->send_data(party2, Ms[party2], sizeof(block)*ssp);
+            io->send_data(party2, bs[party2], ssp);
+            io->flush(party2);
+            res.push_back(false);
+
+            io->recv_data(party2, tMs[party2], sizeof(block)*ssp);
+            io->recv_data(party2, tbs[party2], ssp);
+            for(int k = 0; k < ssp; ++k) {
+                if(tbs[party2][k])
+                    Ks[party2][k] = Ks[party2][k] ^ Delta;
+            }
+            res.push_back(!cmpBlock(Ks[party2], tMs[party2], ssp));
         }
-        if(joinNcleanCheat(res)) error("cheat check1\n");
+        if(checkCheat(res)) error("cheat check1\n");
 
         for(int i = 1; i <= nP; ++i) {
             delete[] Ms[i];
@@ -232,45 +213,39 @@ class ABitMP { public:
         }
         h.digest(dgst[party]);
 
-        vector<future<void>> res;
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res.push_back(pool->enqueue([this, dgst, dgst0, dgst1, party2](){
-                io->send_data(party2, dgst[party], Hash::DIGEST_SIZE);
-                io->send_data(party2, dgst0[party*ssp], Hash::DIGEST_SIZE*ssp);
-                io->send_data(party2, dgst1[party*ssp], Hash::DIGEST_SIZE*ssp);
-                io->recv_data(party2, dgst[party2], Hash::DIGEST_SIZE);
-                io->recv_data(party2, dgst0[party2*ssp], Hash::DIGEST_SIZE*ssp);
-                io->recv_data(party2, dgst1[party2*ssp], Hash::DIGEST_SIZE*ssp);
-            }));
+            io->send_data(party2, dgst[party], Hash::DIGEST_SIZE);
+            io->send_data(party2, dgst0[party*ssp], Hash::DIGEST_SIZE*ssp);
+            io->send_data(party2, dgst1[party*ssp], Hash::DIGEST_SIZE*ssp);
+            io->recv_data(party2, dgst[party2], Hash::DIGEST_SIZE);
+            io->recv_data(party2, dgst0[party2*ssp], Hash::DIGEST_SIZE*ssp);
+            io->recv_data(party2, dgst1[party2*ssp], Hash::DIGEST_SIZE*ssp);
         }
-        joinNclean(res);
 
-        vector<future<bool>> res2;
+        vector<bool> res2;
         for(int k = 1; k <= nP; ++k) if(k!= party)
             memcpy(Ms[party][k], MAC[k]+length-3*ssp, sizeof(block)*ssp);
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res2.push_back(pool->enqueue([this, data, MAC, length, party2]() -> bool {
-                io->send_data(party2, data + length - 3*ssp, ssp);
-                for(int k = 1; k <= nP; ++k) if(k != party)
-                    io->send_data(party2, MAC[k] + length - 3*ssp, sizeof(block)*ssp);
-                return false;
-            }));
-            res2.push_back(pool->enqueue([this, dgst, bs, Ms,  party2]() -> bool {
-                Hash h;
-                io->recv_data(party2, bs[party2], ssp);
-                h.put(bs[party2], ssp);
-                for(int k = 1; k <= nP; ++k) if(k != party2) {
-                    io->recv_data(party2, Ms[party2][k], sizeof(block)*ssp);
-                    h.put(Ms[party2][k], sizeof(block)*ssp);
-                }
-                char tmp[Hash::DIGEST_SIZE];h.digest(tmp);
-                return strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE) != 0;
-            }));
+
+            io->send_data(party2, data + length - 3*ssp, ssp);
+            for(int k = 1; k <= nP; ++k) if(k != party)
+                io->send_data(party2, MAC[k] + length - 3*ssp, sizeof(block)*ssp);
+            res2.push_back(false);
+
+            Hash h;
+            io->recv_data(party2, bs[party2], ssp);
+            h.put(bs[party2], ssp);
+            for(int k = 1; k <= nP; ++k) if(k != party2) {
+                io->recv_data(party2, Ms[party2][k], sizeof(block)*ssp);
+                h.put(Ms[party2][k], sizeof(block)*ssp);
+            }
+            char tmp[Hash::DIGEST_SIZE];h.digest(tmp);
+            res2.push_back(strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE) != 0);
         }
-        if(joinNcleanCheat(res2)) error("commitment 1\n");
+        if(checkCheat(res2)) error("commitment 1\n");
 
         memset(bs[party], false, ssp);
         for(int i = 1; i <= nP; ++i) if(i != party) {
@@ -279,35 +254,33 @@ class ABitMP { public:
         }
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            res2.push_back(pool->enqueue([this, bs, Ks, party2]() -> bool {
-                io->send_data(party2, bs[party], ssp);
-                for(int i = 0; i < ssp; ++i) {
-                    if(bs[party][i])
-                        io->send_data(party2, &Ks[1][i], sizeof(block));
-                    else
-                        io->send_data(party2, &Ks[0][i], sizeof(block));
-                }
-                io->flush(party2);
-                return false;
-            }));
-            res2.push_back(pool->enqueue([this, KK, dgst0, dgst1, party2]() -> bool {
-                bool cheat = false;
-                bool *tmp_bool = new bool[ssp];
-                io->recv_data(party2, tmp_bool, ssp);
-                io->recv_data(party2, KK[party2], ssp*sizeof(block));
-                for(int i = 0; i < ssp; ++i) {
-                    char tmp[Hash::DIGEST_SIZE];
-                    Hash::hash_once(tmp, &KK[party2][i], sizeof(block));
-                    if(tmp_bool[i])
-                        cheat = cheat or (strncmp(tmp, dgst1[party2*ssp+i], Hash::DIGEST_SIZE)!=0);
-                    else
-                        cheat = cheat or (strncmp(tmp, dgst0[party2*ssp+i], Hash::DIGEST_SIZE)!=0);
-                }
-                delete[] tmp_bool;
-                return cheat;
-            }));
+
+            io->send_data(party2, bs[party], ssp);
+            for(int i = 0; i < ssp; ++i) {
+                if(bs[party][i])
+                    io->send_data(party2, &Ks[1][i], sizeof(block));
+                else
+                    io->send_data(party2, &Ks[0][i], sizeof(block));
+            }
+            io->flush(party2);
+            res2.push_back(false);
+
+            bool cheat = false;
+            bool *tmp_bool = new bool[ssp];
+            io->recv_data(party2, tmp_bool, ssp);
+            io->recv_data(party2, KK[party2], ssp*sizeof(block));
+            for(int i = 0; i < ssp; ++i) {
+                char tmp[Hash::DIGEST_SIZE];
+                Hash::hash_once(tmp, &KK[party2][i], sizeof(block));
+                if(tmp_bool[i])
+                    cheat = cheat or (strncmp(tmp, dgst1[party2*ssp+i], Hash::DIGEST_SIZE)!=0);
+                else
+                    cheat = cheat or (strncmp(tmp, dgst0[party2*ssp+i], Hash::DIGEST_SIZE)!=0);
+            }
+            delete[] tmp_bool;
+            res2.push_back(cheat);
         }
-        if(joinNcleanCheat(res2)) error("commitments 2\n");
+        if(checkCheat(res2)) error("commitments 2\n");
 
         bool cheat = false;
         block *tmp_block = new block[ssp];

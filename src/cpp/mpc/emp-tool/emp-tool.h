@@ -4,7 +4,6 @@ using std::min;
 #include <thread>
 #include "emp-tool/io/i_raw_io.h"
 #include "emp-tool/io/io_channel.h"
-#include "emp-tool/io/net_io.h"
 
 #include "emp-tool/circuits/circuit_file.h"
 
@@ -15,7 +14,6 @@ using std::min;
 #include "emp-tool/utils/prg.h"
 #include "emp-tool/utils/prp.h"
 #include "emp-tool/utils/utils.h"
-#include "emp-tool/utils/ThreadPool.h"
 #include "emp-tool/utils/group.h"
 #include "emp-tool/utils/mitccrh.h"
 #include "emp-tool/utils/aes_opt.h"
