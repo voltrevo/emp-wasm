@@ -1,5 +1,5 @@
-#ifndef EMP_F2K_H__
-#define EMP_F2K_H__
+#ifndef EMP_F2K_H
+#define EMP_F2K_H
 #include "emp-tool/utils/block.h"
 
 namespace emp {

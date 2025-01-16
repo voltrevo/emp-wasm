@@ -1,5 +1,5 @@
-#ifndef EMP_CRH_H__
-#define EMP_CRH_H__
+#ifndef EMP_CRH_H
+#define EMP_CRH_H
 #include "emp-tool/utils/prp.h"
 #include <stdio.h>
 
@@ -56,4 +56,4 @@ class CRH: public PRP { public:
     }
 };
 }
-#endif// CRH_H__
+#endif// CRH_H

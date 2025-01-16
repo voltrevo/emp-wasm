@@ -1,5 +1,5 @@
-#ifndef ABIT_MP_H__
-#define ABIT_MP_H__
+#ifndef ABIT_MP_H
+#define ABIT_MP_H
 #include <emp-tool/emp-tool.h>
 #include <emp-ot/emp-ot.h>
 #include "netmp.h"
@@ -335,4 +335,4 @@ class ABitMP { public:
         }
     }
 };
-#endif //ABIT_MP_H__
+#endif //ABIT_MP_H

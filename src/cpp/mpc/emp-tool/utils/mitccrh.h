@@ -1,5 +1,5 @@
-#ifndef EMP_MITCCRH_H__
-#define EMP_MITCCRH_H__
+#ifndef EMP_MITCCRH_H
+#define EMP_MITCCRH_H
 #include "emp-tool/utils/aes_opt.h"
 #include <stdio.h>
 
@@ -60,4 +60,4 @@ class MITCCRH { public:
 
 };
 }
-#endif// MITCCRH_H__
+#endif// MITCCRH_H

@@ -1,5 +1,5 @@
-#ifndef EMP_UTIL_BLOCK_H__
-#define EMP_UTIL_BLOCK_H__
+#ifndef EMP_UTIL_BLOCK_H
+#define EMP_UTIL_BLOCK_H
 
 #ifdef __x86_64__
 #include <immintrin.h>
@@ -179,4 +179,4 @@ inline void sse_trans(uint8_t *out, uint8_t const *inp, uint64_t nrows,
     OUT(rr, cc + i) = _mm_movemask_epi8(tmp.x);
 }
 }
-#endif//UTIL_BLOCK_H__
+#endif//UTIL_BLOCK_H

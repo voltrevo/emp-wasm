@@ -1,5 +1,5 @@
-#ifndef EMP_GROUP_OPENSSL_H__
-#define EMP_GROUP_OPENSSL_H__
+#ifndef EMP_GROUP_OPENSSL_H
+#define EMP_GROUP_OPENSSL_H
 
 namespace emp {
 inline BigInt::BigInt() {

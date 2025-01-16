@@ -1,5 +1,5 @@
-#ifndef EMP_HALFGATE_GEN_H__
-#define EMP_HALFGATE_GEN_H__
+#ifndef EMP_HALFGATE_GEN_H
+#define EMP_HALFGATE_GEN_H
 #include "emp-tool/utils/utils.h"
 #include "emp-tool/utils/mitccrh.h"
 #include "emp-tool/execution/circuit_execution.h"
@@ -80,4 +80,4 @@ public:
     }
 };
 }
-#endif// HALFGATE_GEN_H__
+#endif// HALFGATE_GEN_H

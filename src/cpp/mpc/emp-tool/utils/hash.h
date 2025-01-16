@@ -1,5 +1,5 @@
-#ifndef EMP_HASH_H__
-#define EMP_HASH_H__
+#ifndef EMP_HASH_H
+#define EMP_HASH_H
 
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/group.h"
@@ -75,4 +75,4 @@ class Hash { public:
     }
 };
 }
-#endif// HASH_H__
+#endif// HASH_H

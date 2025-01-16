@@ -1,5 +1,5 @@
-#ifndef EMP_PRG_H__
-#define EMP_PRG_H__
+#ifndef EMP_PRG_H
+#define EMP_PRG_H
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/aes.h"
 #include "emp-tool/utils/utils.h"
@@ -120,4 +120,4 @@ class PRG { public:
 };
 
 }
-#endif// PRP_H__
+#endif// PRP_H

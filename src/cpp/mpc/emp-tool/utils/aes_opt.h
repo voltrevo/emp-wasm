@@ -1,5 +1,5 @@
-#ifndef EMP_AES_OPT_KS_H__
-#define EMP_AES_OPT_KS_H__
+#ifndef EMP_AES_OPT_KS_H
+#define EMP_AES_OPT_KS_H
 
 #include "emp-tool/utils/aes.h"
 

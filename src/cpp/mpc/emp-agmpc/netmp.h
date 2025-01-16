@@ -1,5 +1,5 @@
-#ifndef NETIOMP_H__
-#define NETIOMP_H__
+#ifndef NETIOMP_H
+#define NETIOMP_H
 #include <emp-tool/emp-tool.h>
 #include "cmpc_config.h"
 using namespace emp;
@@ -117,4 +117,4 @@ class NetIOMP { public:
         }
     }
 };
-#endif //NETIOMP_H__
+#endif //NETIOMP_H

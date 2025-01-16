@@ -1,5 +1,5 @@
-#ifndef EMP_UTILS_H__
-#define EMP_UTILS_H__
+#ifndef EMP_UTILS_H
+#define EMP_UTILS_H
 #include <string>
 #include "emp-tool/utils/block.h"
 #include <sstream>
@@ -52,4 +52,4 @@ bool file_exists(const std::string &name);
 
 #include "emp-tool/utils/utils.hpp"
 }
-#endif// UTILS_H__
+#endif// UTILS_H

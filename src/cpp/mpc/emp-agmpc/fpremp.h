@@ -1,6 +1,6 @@
 //TODO: check MACs
-#ifndef FPRE_MP_H__
-#define FPRE_MP_H__
+#ifndef FPRE_MP_H
+#define FPRE_MP_H
 #include <emp-tool/emp-tool.h>
 #include <thread>
 #include "abitmp.h"
@@ -426,4 +426,4 @@ class FpreMP { public:
         }
     }
 };
-#endif// FPRE_H__
+#endif// FPRE_H

@@ -1,5 +1,5 @@
-#ifndef CMPC_H__
-#define CMPC_H__
+#ifndef CMPC_H
+#define CMPC_H
 #include "fpremp.h"
 #include "abitmp.h"
 #include "netmp.h"
@@ -676,4 +676,4 @@ class CMPC { public:
         delete[] mask_input;
     }
 };
-#endif// CMPC_H__
+#endif// CMPC_H
