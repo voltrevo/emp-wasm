@@ -111,7 +111,7 @@ class PRG { public:
         return 0xFFFFFFFFFFFFFFFFULL;
     }
     result_type operator()() {
-        if(ptr == 32) {        
+        if(ptr == 32) {
             random_block((block*)buffer, 16);
             ptr = 0;
         }

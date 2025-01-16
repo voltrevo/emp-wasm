@@ -98,7 +98,7 @@ class FpreMP { public:
         joinNclean(res);
         for(int k = 0; k < length*bucket_size; ++k) {
             s[0][k] = (tr[3*k] and tr[3*k+1]);
-            for(int i = 1; i <= nP; ++i) 
+            for(int i = 1; i <= nP; ++i)
                 if (i != party) {
                     s[0][k] = (s[0][k] != s[i][k]);
                 }
@@ -128,7 +128,7 @@ class FpreMP { public:
         joinNclean(res);
 #ifdef __debug
         check_MAC(io, tMAC, tKEY, tr, Delta, length*bucket_size*3, party);
-#endif        
+#endif
         auto ret = abit->check(tMAC, tKEY, tr, length*bucket_size*3 + 3*ssp);
         ret.get();
         //check compute phi
@@ -227,8 +227,8 @@ class FpreMP { public:
             xorBlocks_arr(X[1], X[1], X[i], ssp);
         for(int i = 0; i < ssp; ++i)X[2][i] = zero_block;
         if(!cmpBlock(X[1], X[2], ssp)) error("AND check");
-    
-        //land -> and    
+
+        //land -> and
         block S = sampleRandom<nP>(io, &prg, pool, party);
 
         int * ind = new int[length*bucket_size];
@@ -248,7 +248,7 @@ class FpreMP { public:
             location[index] = tmp;
         }
         delete[] ind;
-    
+
         for(int i = 0; i < length; ++i) {
             for(int j = 0; j < bucket_size-1; ++j)
                 d[party][(bucket_size-1)*i+j] = tr[3*location[i*bucket_size]+1] != tr[3*location[i*bucket_size+1+j]+1];
@@ -284,9 +284,9 @@ class FpreMP { public:
         for(int i = 2; i <= nP; ++i)
             for(int j = 0; j <  (bucket_size-1)*length; ++j)
                 d[1][j] = d[1][j]!=d[i][j];
-        
+
         for(int i = 0; i < length; ++i)  {
-            for(int j = 1; j <= nP; ++j)if (j!= party) { 
+            for(int j = 1; j <= nP; ++j)if (j!= party) {
                 for(int k = 1; k < bucket_size; ++k)
                     if(d[1][(bucket_size-1)*i+k-1]) {
                         MAC[j][3*i+2] = MAC[j][3*i+2] ^ tMAC[j][3*location[i*bucket_size+k]];
@@ -298,12 +298,12 @@ class FpreMP { public:
                     r[3*i+2] = r[3*i+2] != tr[3*location[i*bucket_size+k]];
                 }
         }
-        
+
 #ifdef __debug
         check_MAC(io, MAC, KEY, r, Delta, length*3, party);
         check_correctness(io, r, length, party);
 #endif
-    
+
 //        ret.get();
         delete[] tr;
         delete[] phi;
@@ -360,7 +360,7 @@ class FpreMP { public:
         uint8_t res = LSB(bH);
         tmp >>= (r[3*i+1]*2+r[3*i]);
         return (tmp&0x1) != (res&0x1);
-    }    
+    }
 
     void check_MAC_phi(block * MAC[nP+1], block * KEY[nP+1], block * phi, bool * r, int length) {
         block * tmp = new block[length];
@@ -383,7 +383,7 @@ class FpreMP { public:
         delete[] tmp;
         delete[] tD;
         if(party == 1)
-            cerr<<"check_MAC_phi pass!\n"<<flush; 
+            cerr<<"check_MAC_phi pass!\n"<<flush;
     }
 
 
@@ -400,7 +400,7 @@ class FpreMP { public:
             for(int i = 0; i < l; ++i)
                 if(!cmpBlock(&z, &tmp1[i], 1))
                     error("check sum zero failed!");
-            cerr<<"check zero sum pass!\n"<<flush; 
+            cerr<<"check zero sum pass!\n"<<flush;
             delete[] tmp1;
             delete[] tmp2;
         } else {

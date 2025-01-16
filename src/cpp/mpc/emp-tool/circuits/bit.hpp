@@ -1,7 +1,7 @@
 inline Bit::Bit(bool b, int party) {
     if (party == PUBLIC)
         bit = CircuitExecution::circ_exec->public_label(b);
-    else ProtocolExecution::prot_exec->feed(&bit, party, &b, 1); 
+    else ProtocolExecution::prot_exec->feed(&bit, party, &b, 1);
 }
 
 inline Bit Bit::select(const Bit & select, const Bit & new_v) const{

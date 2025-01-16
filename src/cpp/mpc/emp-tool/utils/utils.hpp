@@ -1,5 +1,5 @@
 template<class... Ts>
-void run_function(void *function, const Ts&... args) {    
+void run_function(void *function, const Ts&... args) {
     reinterpret_cast<void(*)(Ts...)>(function)(args...);
 }
 
@@ -11,7 +11,7 @@ void inline delete_array_null(T * ptr){
     }
 }
 
-inline time_point<high_resolution_clock> clock_start() { 
+inline time_point<high_resolution_clock> clock_start() {
     return high_resolution_clock::now();
 }
 

@@ -16,7 +16,7 @@ const static block inProdTableBlock[] = {zero_block, all_one_block};
 
 block inProd(bool * b, block * blk, int length) {
         block res = zero_block;
-        for(int i = 0; i < length; ++i) 
+        for(int i = 0; i < length; ++i)
 //            if(b[i])
 //                res = res ^ blk[i];
             res = res ^ (inProdTableBlock[b[i]] & blk[i]);
@@ -147,7 +147,7 @@ void check_MAC(NetIOMP<nP> * io, block * MAC[nP+1], block * KEY[nP+1], bool * r,
     }
     delete[] tmp;
     if(party == 1)
-        cerr<<"check_MAC pass!\n"<<flush; 
+        cerr<<"check_MAC pass!\n"<<flush;
 }
 
 template<int nP>
@@ -167,7 +167,7 @@ void check_correctness(NetIOMP<nP>* io, bool * r, int length, int party) {
         }
         delete[] tmp1;
         delete[] tmp2;
-        cerr<<"check_correctness pass!\n"<<flush; 
+        cerr<<"check_correctness pass!\n"<<flush;
     } else {
         io->send_data(1, r, length*3);
         io->flush(1);

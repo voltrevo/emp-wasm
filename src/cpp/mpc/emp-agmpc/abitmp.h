@@ -65,7 +65,7 @@ class ABitMP { public:
 
         if(party == 1)
             Delta = abit1[2]->Delta;
-        else 
+        else
             Delta = abit1[1]->Delta;
     }
     ~ABitMP() {
@@ -130,7 +130,7 @@ class ABitMP { public:
             tMs[i] = new block[ssp];
             tbs[i] = new bool[ssp];
         }
-        
+
         const int chk = 1;
         const int SIZE = 1024*2;
         block (* tMAC)[4] = new block[SIZE/chk][4];
@@ -168,7 +168,7 @@ class ABitMP { public:
         }
         delete[] tmp;
         vector<future<bool>> res;
-        //TODO: they should not need to send MACs.    
+        //TODO: they should not need to send MACs.
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
             res.push_back(pool->enqueue([this, Ms, bs, party2]()->bool {
@@ -214,13 +214,13 @@ class ABitMP { public:
         char (*dgst)[Hash::DIGEST_SIZE] = new char[nP+1][Hash::DIGEST_SIZE];
         char (*dgst0)[Hash::DIGEST_SIZE] = new char[ssp*(nP+1)][Hash::DIGEST_SIZE];
         char (*dgst1)[Hash::DIGEST_SIZE] = new char[ssp*(nP+1)][Hash::DIGEST_SIZE];
-    
-        
+
+
         for(int i = 0; i < ssp; ++i) {
             Ks[0][i] = zero_block;
             for(int j = 1; j <= nP; ++j) if(j != party)
                 Ks[0][i] = Ks[0][i] ^ KEY[j][length-3*ssp+i];
-            
+
             Ks[1][i] = Ks[0][i] ^ Delta;
             Hash::hash_once(dgst0[party*ssp+i], &Ks[0][i], sizeof(block));
             Hash::hash_once(dgst1[party*ssp+i], &Ks[1][i], sizeof(block));
@@ -308,7 +308,7 @@ class ABitMP { public:
             }));
         }
         if(joinNcleanCheat(res2)) error("commitments 2\n");
-        
+
         bool cheat = false;
         block *tmp_block = new block[ssp];
         for(int i = 1; i <= nP; ++i) if (i != party) {

@@ -70,7 +70,7 @@ static inline void ParaEnc(block *blks, AES_KEY *keys) {
         }
     }
 
-    for (unsigned int r = 1; r < 10; ++r) { 
+    for (unsigned int r = 1; r < 10; ++r) {
         blks = first;
         for(size_t i = 0; i < numKeys; ++i) {
             block K = keys[i].rd_key[r];
@@ -95,7 +95,7 @@ template<int numKeys, int numEncs>
 static inline void ParaEnc(block *_blks, AES_KEY *keys) {
     uint8x16_t * first = (uint8x16_t*)(_blks);
 
-    for (unsigned int r = 0; r < 9; ++r) { 
+    for (unsigned int r = 0; r < 9; ++r) {
         auto blks = first;
         for(size_t i = 0; i < numKeys; ++i) {
             uint8x16_t K = vreinterpretq_u8_m128i(keys[i].rd_key[r]);
@@ -103,7 +103,7 @@ static inline void ParaEnc(block *_blks, AES_KEY *keys) {
                *blks = vaesmcq_u8(vaeseq_u8(*blks, K));
         }
     }
-    
+
     auto blks = first;
     for(size_t i = 0; i < numKeys; ++i) {
         uint8x16_t K = vreinterpretq_u8_m128i(keys[i].rd_key[9]);

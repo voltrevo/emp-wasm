@@ -50,10 +50,10 @@ class MITCCRH { public:
         block tmp[K*H];
         for(int i = 0; i < K*H; ++i)
             tmp[i] = blks[i];
-        
+
         ParaEnc<K,H>(tmp, scheduled_key+key_used);
         key_used += K;
-        
+
         for(int i = 0; i < K*H; ++i)
             blks[i] = blks[i] ^ tmp[i];
     }

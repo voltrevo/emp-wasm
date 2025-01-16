@@ -121,7 +121,7 @@ class BristolFormat { public:
             else if (gates[4*i+3] == XOR_GATE) {
                 wires[gates[4*i+2]] = CircuitExecution::circ_exec->xor_gate(wires[gates[4*i]], wires[gates[4*i+1]]);
             }
-            else  
+            else
                 wires[gates[4*i+2]] = CircuitExecution::circ_exec->not_gate(wires[gates[4*i]]);
         }
         memcpy(out, wires.data()+(num_wire-n3), n3*sizeof(block));
@@ -129,7 +129,7 @@ class BristolFormat { public:
 };
 
 class BristolFashion { public:
-    int num_gate = 0, num_wire = 0, 
+    int num_gate = 0, num_wire = 0,
          num_input = 0, num_output = 0;
     vector<int> gates;
     vector<block> wires;
@@ -192,7 +192,7 @@ class BristolFashion { public:
             else if (gates[4*i+3] == XOR_GATE) {
                 wires[gates[4*i+2]] = CircuitExecution::circ_exec->xor_gate(wires[gates[4*i]], wires[gates[4*i+1]]);
             }
-            else  
+            else
                 wires[gates[4*i+2]] = CircuitExecution::circ_exec->not_gate(wires[gates[4*i]]);
         }
         memcpy(out, wires.data()+(num_wire-num_output), num_output*sizeof(block));

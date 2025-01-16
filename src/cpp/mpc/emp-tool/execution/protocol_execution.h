@@ -1,11 +1,11 @@
 #ifndef EMP_PROTOCOL_EXECUTION_H
 #define EMP_PROTOCOL_EXECUTION_H
-#include <pthread.h>  
+#include <pthread.h>
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/constants.h"
 
 namespace emp {
-class ProtocolExecution { 
+class ProtocolExecution {
 public:
     int cur_party;
 #ifndef THREADING

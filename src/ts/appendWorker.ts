@@ -38,13 +38,13 @@ async function secure2PC(
 
   running = true;
 
-  const emp: { 
-    circuit?: string; 
-    input?: Uint8Array; 
-    io?: IO; 
-    handleOutput?: (value: Uint8Array) => void 
+  const emp: {
+    circuit?: string;
+    input?: Uint8Array;
+    io?: IO;
+    handleOutput?: (value: Uint8Array) => void
   } = {};
-  
+
   module.emp = emp;
 
   emp.circuit = circuit;
@@ -80,11 +80,11 @@ function partyToIndex(party: 'alice' | 'bob'): number {
   if (party === 'alice') {
     return 1;
   }
-  
+
   if (party === 'bob') {
     return 2;
   }
-  
+
   throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
 }
 

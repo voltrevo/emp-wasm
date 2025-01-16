@@ -5,7 +5,7 @@
 
 namespace emp {
 
-/* Circuit Pipelining 
+/* Circuit Pipelining
  * [REF] Implementation of "Faster Secure Two-Party Computation Using Garbled Circuit"
  * https://www.usenix.org/legacy/event/sec11/tech/full_papers/Huang.pdf
  */

@@ -84,7 +84,7 @@ inline void xorBlocks_arr(block* res, const block* x, const block* y, int nblock
 
 inline void xorBlocks_arr(block* res, const block* x, block y, int nblocks) {
     const block * dest = nblocks+x;
-    for (; x != dest;) 
+    for (; x != dest;)
         *(res++) =  *(x++) ^ y;
 }
 

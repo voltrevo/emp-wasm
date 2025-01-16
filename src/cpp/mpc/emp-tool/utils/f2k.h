@@ -91,11 +91,11 @@ __attribute__((target("sse2")))
 inline block reduce(__m128i tmp3, __m128i tmp6) {//3 is low, 6 is high
     __m128i tmp7, tmp8, tmp9, tmp10, tmp11, tmp12;
     __m128i XMMMASK = _mm_setr_epi32(0xffffffff, 0x0, 0x0, 0x0);
-    tmp7 = _mm_srli_epi32(tmp6, 31); 
-    tmp8 = _mm_srli_epi32(tmp6, 30); 
+    tmp7 = _mm_srli_epi32(tmp6, 31);
+    tmp8 = _mm_srli_epi32(tmp6, 30);
     tmp9 = _mm_srli_epi32(tmp6, 25);
 
-    tmp7 = _mm_xor_si128(tmp7, tmp8); 
+    tmp7 = _mm_xor_si128(tmp7, tmp8);
     tmp7 = _mm_xor_si128(tmp7, tmp9);
 
     tmp8 = _mm_shuffle_epi32(tmp7, 147);
@@ -108,7 +108,7 @@ inline block reduce(__m128i tmp3, __m128i tmp6) {//3 is low, 6 is high
     tmp10 = _mm_slli_epi32(tmp6, 1);
     tmp3 = _mm_xor_si128(tmp3, tmp10);
     tmp11 = _mm_slli_epi32(tmp6, 2);
-    tmp3 = _mm_xor_si128(tmp3, tmp11); 
+    tmp3 = _mm_xor_si128(tmp3, tmp11);
     tmp12 = _mm_slli_epi32(tmp6, 7);
     tmp3 = _mm_xor_si128(tmp3, tmp12);
     return _mm_xor_si128(tmp3, tmp6);
@@ -202,7 +202,7 @@ inline void uni_hash_coeff_gen(block* coeff, block seed, int sz) {
 /* coefficients of almost universal hash function */
 template<int N>
 inline void uni_hash_coeff_gen(block* coeff, block seed) {
-    uni_hash_coeff_gen(coeff, seed, N);    
+    uni_hash_coeff_gen(coeff, seed, N);
 }
 
 /* packing in Galois field (v[i] * X^i for v of size 128) */

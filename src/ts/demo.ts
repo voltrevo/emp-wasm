@@ -63,7 +63,7 @@ windowAny.wsDemo = async function(
   input: number,
 ): Promise<number> {
   const io = await makeWebSocketIO('ws://localhost:8175/demo');
-  
+
   const bits = await secure2PC(
     party,
     add32BitCircuit,
@@ -287,7 +287,7 @@ function makeConsoleSend(): (data: Uint8Array) => void {
 
 /**
  * Decodes a Base64-encoded string into a Uint8Array.
- * 
+ *
  * @param base64Str - The Base64-encoded string to decode and process.
  * @throws {TypeError} If the input is not a string.
  * @throws {Error} If Base64 decoding fails.

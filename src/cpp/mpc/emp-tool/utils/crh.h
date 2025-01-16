@@ -5,7 +5,7 @@
 
 namespace emp {
 
-/* 
+/*
  * By default, CRH use zero_block as the AES key.
  * Here we model f(x) = AES_{00..0}(x) as a random permutation (and thus in the RPM model)
  */
@@ -14,7 +14,7 @@ class CRH: public PRP { public:
     }
 
     block H(block in) {
-        block t = in; 
+        block t = in;
         permute_block(&t, 1);
         return t ^ in;
     }
@@ -44,7 +44,7 @@ class CRH: public PRP { public:
         if(scratch == nullptr) {
             del = true;
             scratch = new block[n];
-        } 
+        }
         for(int i = 0; i < n; ++i)
             scratch[i] = in[i];
         permute_block(scratch, n);

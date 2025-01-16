@@ -257,9 +257,9 @@ public:
             }
             authenticated_bitshares_new_circuit.emplace_back(new_entry);
         }
-        
+
         //print_block(Delta);
-        
+
         /*
         cout << "Debug the authenticated input" << endl;
         for(int i = 0; i < 10; i++){
@@ -596,7 +596,7 @@ public:
         assert(party_assignment[pos] == party || party_assignment[pos] == 0);
         return plaintext_results[pos];
     }
-    
+
     AuthBitShare<nP> get_authenticated_bitshare(int pos) {
         assert(party_assignment[pos] == -1);
         return authenticated_share_results[pos];
@@ -779,9 +779,9 @@ public:
                 }
             }
         }
-        
+
         //print_block(Delta);
-        
+
         /*
         cout << "Debug the authenticated output" << endl;
         for(int i = 0; i < 10; i++){

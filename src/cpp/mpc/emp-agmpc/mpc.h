@@ -35,7 +35,7 @@ class CMPC { public:
     int party, total_pre, ssp;
     ThreadPool * pool;
     block Delta;
-        
+
     block (*GTM)[4][nP+1];
     block (*GTK)[4][nP+1];
     bool (*GTv)[4];
@@ -180,7 +180,7 @@ class CMPC { public:
         for(int i = 0; i < cf->num_gate; ++i) {
             if (cf->gates[4*i+3] == AND_GATE) {
                 x[party][ands] = value[cf->gates[4*i]] != ANDS_value[3*ands];
-                y[party][ands] = value[cf->gates[4*i+1]] != ANDS_value[3*ands+1];    
+                y[party][ands] = value[cf->gates[4*i+1]] != ANDS_value[3*ands+1];
                 ands++;
             }
         }
@@ -252,7 +252,7 @@ class CMPC { public:
         block H[4][nP+1];
         block K[4][nP+1], M[4][nP+1];
         bool r[4];
-        if(party != 1) { 
+        if(party != 1) {
             for(int i = 0; i < cf->num_gate; ++i) if(cf->gates[4*i+3] == AND_GATE) {
                 r[0] = sigma_value[ands] != value[cf->gates[4*i+2]];
                 r[1] = r[0] != value[cf->gates[4*i]];
@@ -279,7 +279,7 @@ class CMPC { public:
                         H[j][party] = H[j][party] ^ K[j][k];
                     }
                     H[j][party] = H[j][party] ^ labels[cf->gates[4*i+2]];
-                    if(r[j]) 
+                    if(r[j])
                         H[j][party] = H[j][party] ^ Delta;
                 }
                 for(int j = 0; j < 4; ++j)
@@ -359,7 +359,7 @@ class CMPC { public:
             joinNclean(res);
             for(int i = 2; i <= nP; ++i) delete[] tmp[i];
         }
-    
+
         if(party!= 1) {
             for(int i = 0; i < num_in; ++i) {
                 block tmp = labels[i];
@@ -376,8 +376,8 @@ class CMPC { public:
                 }));
             }
             joinNclean(res);
-    
-            int ands = 0;    
+
+            int ands = 0;
             for(int i = 0; i < cf->num_gate; ++i) {
                 if (cf->gates[4*i+3] == XOR_GATE) {
                     for(int j = 2; j<= nP; ++j)
@@ -394,7 +394,7 @@ class CMPC { public:
                         xorBlocks_arr(H, H, GT[ands][j][index], nP+1);
                         for(int k = 2; k <= nP; ++k)
                             eval_labels[k][cf->gates[4*i+2]] = H[k] ^ eval_labels[k][cf->gates[4*i+2]];
-                    
+
                         block t0 = GTK[ands][index][j] ^ Delta;
 
                         if(cmpBlock(&H[1], &GTK[ands][index][j], 1))
@@ -406,7 +406,7 @@ class CMPC { public:
                     }
                     ands++;
                 } else {
-                    mask_input[cf->gates[4*i+2]] = not mask_input[cf->gates[4*i]];    
+                    mask_input[cf->gates[4*i+2]] = not mask_input[cf->gates[4*i]];
                     for(int j = 2; j <= nP; ++j)
                         eval_labels[j][cf->gates[4*i+2]] = eval_labels[j][cf->gates[4*i]];
                 }
@@ -418,7 +418,7 @@ class CMPC { public:
         } else {
             vector<future<void>> res;
             bool * tmp[nP+1];
-            for(int i = 2; i <= nP; ++i) 
+            for(int i = 2; i <= nP; ++i)
                 tmp[i] = new bool[cf->n3];
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
@@ -444,11 +444,11 @@ class CMPC { public:
         T[1] = sigma(a ^ Delta);
         T[2] = sigma(sigma(b));
         T[3] = sigma(sigma(b ^ Delta));
-        
-        H[0][0] = T[0] ^ T[2];  
-        H[1][0] = T[0] ^ T[3];  
-        H[2][0] = T[1] ^ T[2];  
-        H[3][0] = T[1] ^ T[3];  
+
+        H[0][0] = T[0] ^ T[2];
+        H[1][0] = T[0] ^ T[3];
+        H[2][0] = T[1] ^ T[2];
+        H[3][0] = T[1] ^ T[3];
         for(int j = 0; j < 4; ++j) for(int i = 1; i <= nP; ++i) {
             H[j][i] = H[j][0] ^ makeBlock(4*idx+j, i);
         }
@@ -500,7 +500,7 @@ class CMPC { public:
                 emp::Hash::hash_once(dig2, tmp, (end[party]-start[party])*sizeof(block));
                 io->recv_data(party2, dig, Hash::DIGEST_SIZE);
                 delete[] tmp;
-                return strncmp(dig, dig2, Hash::DIGEST_SIZE) != 0;    
+                return strncmp(dig, dig2, Hash::DIGEST_SIZE) != 0;
             }));
         }
         if(joinNcleanCheat(res)) error("cheat!");
@@ -532,7 +532,7 @@ class CMPC { public:
             }
             joinNclean(res);
         }
-    
+
         if(party!= 1) {
             for(int i = 0; i < num_in; ++i) {
                 block tmp = labels[i];
@@ -549,8 +549,8 @@ class CMPC { public:
                 }));
             }
             joinNclean(res);
-    
-            int ands = 0;    
+
+            int ands = 0;
             for(int i = 0; i < cf->num_gate; ++i) {
                 if (cf->gates[4*i+3] == XOR_GATE) {
                     for(int j = 2; j<= nP; ++j)
@@ -567,7 +567,7 @@ class CMPC { public:
                         xorBlocks_arr(H, H, GT[ands][j][index], nP+1);
                         for(int k = 2; k <= nP; ++k)
                             eval_labels[k][cf->gates[4*i+2]] = H[k] ^ eval_labels[k][cf->gates[4*i+2]];
-                    
+
                         block t0 = GTK[ands][index][j] ^ Delta;
 
                         if(cmpBlock(&H[1], &GTK[ands][index][j], 1))
@@ -579,7 +579,7 @@ class CMPC { public:
                     }
                     ands++;
                 } else {
-                    mask_input[cf->gates[4*i+2]] = not mask_input[cf->gates[4*i]];    
+                    mask_input[cf->gates[4*i+2]] = not mask_input[cf->gates[4*i]];
                     for(int j = 2; j <= nP; ++j)
                         eval_labels[j][cf->gates[4*i+2]] = eval_labels[j][cf->gates[4*i]];
                 }
@@ -591,7 +591,7 @@ class CMPC { public:
         } else {
             vector<future<void>> res;
             bool * tmp[nP+1];
-            for(int i = 2; i <= nP; ++i) 
+            for(int i = 2; i <= nP; ++i)
                 tmp[i] = new bool[cf->n3];
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
