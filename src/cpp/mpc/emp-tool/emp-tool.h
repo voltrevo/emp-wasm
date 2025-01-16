@@ -7,13 +7,7 @@
 
 #include "emp-tool/circuits/bit.h"
 #include "emp-tool/circuits/circuit_file.h"
-#include "emp-tool/circuits/comparable.h"
-#include "emp-tool/circuits/float32.h"
-#include "emp-tool/circuits/integer.h"
-#include "emp-tool/circuits/number.h"
 #include "emp-tool/circuits/swappable.h"
-#include "emp-tool/circuits/sha3_256.h"
-#include "emp-tool/circuits/aes_128_ctr.h"
 
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/constants.h"
