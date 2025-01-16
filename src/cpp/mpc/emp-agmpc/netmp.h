@@ -1,5 +1,6 @@
 #ifndef NETIOMP_H
 #define NETIOMP_H
+#include <unistd.h>
 #include <emp-tool/emp-tool.h>
 #include "cmpc_config.h"
 using namespace emp;

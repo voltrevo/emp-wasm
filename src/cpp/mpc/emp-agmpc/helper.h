@@ -82,10 +82,6 @@ void recv_partial_block(IOChannel& io, block * data, int length) {
     }
 }
 
-inline uint8_t LSB(block & b) {
-    return _mm_extract_epi8(b, 0) & 0x1;
-}
-
 template<int nP>
 block sampleRandom(NetIOMP<nP> * io, PRG * prg, ThreadPool * pool, int party) {
     vector<future<void>> res;

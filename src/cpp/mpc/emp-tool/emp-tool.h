@@ -6,9 +6,7 @@ using std::min;
 #include "emp-tool/io/io_channel.h"
 #include "emp-tool/io/net_io.h"
 
-#include "emp-tool/circuits/bit.h"
 #include "emp-tool/circuits/circuit_file.h"
-#include "emp-tool/circuits/swappable.h"
 
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/constants.h"

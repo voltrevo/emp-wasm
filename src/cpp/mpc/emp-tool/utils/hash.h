@@ -1,67 +1,72 @@
 #ifndef EMP_HASH_H
 #define EMP_HASH_H
 
-#include "emp-tool/utils/block.h"
-#include "emp-tool/utils/group.h"
-#include "emp-tool/utils/constants.h"
-#include <openssl/evp.h>
+#include "block.h"
+#include <mbedtls/sha256.h>
 #include <stdio.h>
 
 namespace emp {
-class Hash { public:
-    EVP_MD_CTX *mdctx;
+class Hash {
+public:
+    mbedtls_sha256_context mdctx;
+    static const int HASH_BUFFER_SIZE = 4096;
     char buffer[HASH_BUFFER_SIZE];
     int size = 0;
     static const int DIGEST_SIZE = 32;
+
     Hash() {
-        if((mdctx = EVP_MD_CTX_create()) == NULL)
-            error("Hash function setup error!");
-        if(1 != EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL))
-            error("Hash function setup error!");
+        mbedtls_sha256_init(&mdctx);
+        mbedtls_sha256_starts(&mdctx, 0); // 0 for SHA-256
     }
+
     ~Hash() {
-        EVP_MD_CTX_destroy(mdctx);
+        mbedtls_sha256_free(&mdctx);
     }
+
     void put(const void * data, int nbyte) {
-        if (nbyte >= HASH_BUFFER_SIZE)
-            EVP_DigestUpdate(mdctx, data, nbyte);
-        else if(size + nbyte < HASH_BUFFER_SIZE) {
+        if (nbyte >= HASH_BUFFER_SIZE) {
+            mbedtls_sha256_update(&mdctx, (const unsigned char *)data, nbyte);
+        } else if(size + nbyte < HASH_BUFFER_SIZE) {
             memcpy(buffer+size, data, nbyte);
             size+=nbyte;
         } else {
-            EVP_DigestUpdate(mdctx, buffer, size);
+            mbedtls_sha256_update(&mdctx, (const unsigned char *)buffer, size);
             memcpy(buffer, data, nbyte);
             size = nbyte;
         }
     }
+
     void put_block(const block* blk, int nblock=1){
         put(blk, sizeof(block)*nblock);
     }
+
     void digest(void * a) {
         if(size > 0) {
-            EVP_DigestUpdate(mdctx, buffer, size);
+            mbedtls_sha256_update(&mdctx, (const unsigned char *)buffer, size);
             size=0;
         }
-        uint32_t len = 0;
-        EVP_DigestFinal_ex(mdctx, (unsigned char *)a, &len);
+        mbedtls_sha256_finish(&mdctx, (unsigned char *)a);
         reset();
     }
+
     void reset() {
-        EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+        mbedtls_sha256_starts(&mdctx, 0);
         size=0;
     }
+
     static void hash_once(void * dgst, const void * data, int nbyte) {
         Hash hash;
         hash.put(data, nbyte);
         hash.digest(dgst);
     }
-    #ifdef __x86_64__
-    __attribute__((target("sse2")))
-    #endif
+
     static block hash_for_block(const void * data, int nbyte) {
         char digest[DIGEST_SIZE];
         hash_once(digest, data, nbyte);
-        return _mm_load_si128((__m128i*)&digest[0]);
+        uint64_t low, high;
+        memcpy(&low, digest, sizeof(uint64_t));
+        memcpy(&high, digest + sizeof(uint64_t), sizeof(uint64_t));
+        return block(high, low);
     }
 
     static block KDF(Point &in, uint64_t id = 1) {
@@ -74,5 +79,5 @@ class Hash { public:
         return ret;
     }
 };
-}
-#endif// HASH_H
+} // namespace emp
+#endif // EMP_HASH_H

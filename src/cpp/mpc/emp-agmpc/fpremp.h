@@ -339,10 +339,10 @@ class FpreMP { public:
         tmp2[2] = tmp[0] ^ tmp[3];
         tmp2[3] = tmp[1] ^ tmp[3];
 
-        data = LSB(tmp2[0]);
-        data |= (LSB(tmp2[1])<<1);
-        data |= (LSB(tmp2[2])<<2);
-        data |= (LSB(tmp2[3])<<3);
+        data = getLSB(tmp2[0]);
+        data |= (getLSB(tmp2[1])<<1);
+        data |= (getLSB(tmp2[2])<<2);
+        data |= (getLSB(tmp2[3])<<3);
         if ( ((false != r[3*i] ) && (false != r[3*i+1])) != r2[i] )
             data= data ^ 0x1;
         if ( ((true != r[3*i] ) && (false != r[3*i+1])) != r2[i] )
@@ -357,7 +357,7 @@ class FpreMP { public:
         block hin = sigma(MAC[3*i]) ^ makeBlock(0, 4*i + r[3*i]);
         block hin2 = sigma(MAC[3*i+1]) ^ makeBlock(0, 4*i + 2 + r[3*i+1]);
         block bH = prps[I].H(hin) ^ prps[I].H(hin2);
-        uint8_t res = LSB(bH);
+        uint8_t res = getLSB(bH);
         tmp >>= (r[3*i+1]*2+r[3*i]);
         return (tmp&0x1) != (res&0x1);
     }

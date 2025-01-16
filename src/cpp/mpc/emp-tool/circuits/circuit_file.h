@@ -35,96 +35,103 @@ void execute_circuit(block * wires, const T * gates, size_t num_gate) {
 }
 
 
-class BristolFormat { public:
+class BristolFormat {
+public:
     int num_gate, num_wire, n1, n2, n3;
-    vector<int> gates;
-    vector<block> wires;
+    std::vector<int> gates;
+    std::vector<block> wires;
     std::ofstream fout;
 
-    BristolFormat(int num_gate, int num_wire, int n1, int n2, int n3, int * gate_arr) {
+    BristolFormat() {}
+
+    BristolFormat(int num_gate, int num_wire, int n1, int n2, int n3, int* gate_arr) {
         this->num_gate = num_gate;
         this->num_wire = num_wire;
         this->n1 = n1;
         this->n2 = n2;
         this->n3 = n3;
-        gates.resize(num_gate*4);
+        gates.resize(num_gate * 4);
         wires.resize(num_wire);
-        memcpy(gates.data(), gate_arr, num_gate*4*sizeof(int));
+        memcpy(gates.data(), gate_arr, num_gate * 4 * sizeof(int));
     }
 
-    BristolFormat(FILE * file) {
+    BristolFormat(const char* file) {
         this->from_file(file);
     }
 
-    BristolFormat(const char * file) {
-        this->from_file(file);
-    }
-
-
-    void to_file(const char * filename, const char * prefix) {
-        fout.open(filename);
-        fout << "int "<<string(prefix)+"_num_gate = "<<num_gate<<";\n";
-        fout << "int "<<string(prefix)+"_num_wire = "<<num_wire<<";\n";
-        fout << "int "<<string(prefix)+"_n1 = "<<n1<<";\n";
-        fout << "int "<<string(prefix)+"_n2 = "<<n2<<";\n";
-        fout << "int "<<string(prefix)+"_n3 = "<<n3<<";\n";
-        fout << "int "<<string(prefix)+"_gate_arr ["<< num_gate*4 <<"] = {\n";
-        for(int i = 0; i < num_gate; ++i) {
-            for(int j = 0; j < 4; ++j)
-                fout<<gates[4*i+j]<<", ";
-            fout<<"\n";
+    void from_file(const char* file) {
+        std::ifstream file_stream(file);
+        if (!file_stream.is_open()) {
+            throw std::runtime_error("Cannot open file");
         }
-        fout <<"};\n";
+        from_stream(file_stream);
+    }
+
+    void from_str(const char* input) {
+        std::istringstream string_stream(input);
+        from_stream(string_stream);
+    }
+
+    void to_file(const char* filename, const char* prefix) {
+        fout.open(filename);
+        fout << "int " << std::string(prefix) + "_num_gate = " << num_gate << ";\n";
+        fout << "int " << std::string(prefix) + "_num_wire = " << num_wire << ";\n";
+        fout << "int " << std::string(prefix) + "_n1 = " << n1 << ";\n";
+        fout << "int " << std::string(prefix) + "_n2 = " << n2 << ";\n";
+        fout << "int " << std::string(prefix) + "_n3 = " << n3 << ";\n";
+        fout << "int " << std::string(prefix) + "_gate_arr [" << num_gate * 4 << "] = {\n";
+        for (int i = 0; i < num_gate; ++i) {
+            for (int j = 0; j < 4; ++j)
+                fout << gates[4 * i + j] << ", ";
+            fout << "\n";
+        }
+        fout << "};\n";
         fout.close();
     }
 
+    void compute(Bit* out, const Bit* in1, const Bit* in2) {
+        compute((block*)out, (block*)in1, (block*)in2);
+    }
 
-    void from_file(FILE * f) {
+    void compute(block* out, const block* in1, const block* in2) {
+        memcpy(wires.data(), in1, n1 * sizeof(block));
+        memcpy(wires.data() + n1, in2, n2 * sizeof(block));
+        for (int i = 0; i < num_gate; ++i) {
+            if (gates[4 * i + 3] == AND_GATE) {
+                wires[gates[4 * i + 2]] = CircuitExecution::circ_exec->and_gate(wires[gates[4 * i]], wires[gates[4 * i + 1]]);
+            } else if (gates[4 * i + 3] == XOR_GATE) {
+                wires[gates[4 * i + 2]] = CircuitExecution::circ_exec->xor_gate(wires[gates[4 * i]], wires[gates[4 * i + 1]]);
+            } else {
+                wires[gates[4 * i + 2]] = CircuitExecution::circ_exec->not_gate(wires[gates[4 * i]]);
+            }
+        }
+        memcpy(out, wires.data() + (num_wire - n3), n3 * sizeof(block));
+    }
+
+private:
+    void from_stream(std::istream& stream) {
         int tmp;
-        (void)fscanf(f, "%d%d\n", &num_gate, &num_wire);
-        (void)fscanf(f, "%d%d%d\n", &n1, &n2, &n3);
-        (void)fscanf(f, "\n");
-        char str[10];
-        gates.resize(num_gate*4);
+        stream >> num_gate >> num_wire;
+        stream >> n1 >> n2 >> n3;
+
+        gates.resize(num_gate * 4);
         wires.resize(num_wire);
-        for(int i = 0; i < num_gate; ++i) {
-            (void)fscanf(f, "%d", &tmp);
+
+        for (int i = 0; i < num_gate; ++i) {
+            stream >> tmp;
             if (tmp == 2) {
-                (void)fscanf(f, "%d%d%d%d%s", &tmp, &gates[4*i], &gates[4*i+1], &gates[4*i+2], str);
-                if (str[0] == 'A') gates[4*i+3] = AND_GATE;
-                else if (str[0] == 'X') gates[4*i+3] = XOR_GATE;
-            }
-            else if (tmp == 1) {
-                (void)fscanf(f, "%d%d%d%s", &tmp, &gates[4*i], &gates[4*i+2], str);
-                gates[4*i+3] = NOT_GATE;
+                stream >> tmp >> gates[4 * i] >> gates[4 * i + 1] >> gates[4 * i + 2];
+                std::string gate_type;
+                stream >> gate_type;
+                if (gate_type[0] == 'A') gates[4 * i + 3] = AND_GATE;
+                else if (gate_type[0] == 'X') gates[4 * i + 3] = XOR_GATE;
+            } else if (tmp == 1) {
+                stream >> tmp >> gates[4 * i] >> gates[4 * i + 2];
+                std::string gate_type;
+                stream >> gate_type;
+                gates[4 * i + 3] = NOT_GATE;
             }
         }
-    }
-
-    void from_file(const char * file) {
-        FILE * f = fopen(file, "r");
-        this->from_file(f);
-        fclose(f);
-    }
-
-    void compute(Bit * out, const Bit * in1, const Bit * in2) {
-        compute((block*)out, (block *)in1, (block*)in2);
-    }
-
-    void compute(block * out, const block * in1, const block * in2) {
-        memcpy(wires.data(), in1, n1*sizeof(block));
-        memcpy(wires.data()+n1, in2, n2*sizeof(block));
-        for(int i = 0; i < num_gate; ++i) {
-            if(gates[4*i+3] == AND_GATE) {
-                wires[gates[4*i+2]] = CircuitExecution::circ_exec->and_gate(wires[gates[4*i]], wires[gates[4*i+1]]);
-            }
-            else if (gates[4*i+3] == XOR_GATE) {
-                wires[gates[4*i+2]] = CircuitExecution::circ_exec->xor_gate(wires[gates[4*i]], wires[gates[4*i+1]]);
-            }
-            else
-                wires[gates[4*i+2]] = CircuitExecution::circ_exec->not_gate(wires[gates[4*i]]);
-        }
-        memcpy(out, wires.data()+(num_wire-n3), n3*sizeof(block));
     }
 };
 

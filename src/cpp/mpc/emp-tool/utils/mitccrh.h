@@ -11,7 +11,8 @@ namespace emp {
  */
 
 template<int BatchSize = 8>
-class MITCCRH { public:
+class MITCCRH {
+public:
     AES_KEY scheduled_key[BatchSize];
     block keys[BatchSize];
     int key_used = BatchSize;

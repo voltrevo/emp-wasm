@@ -12,7 +12,8 @@ namespace emp {
  * [REF] "Efficient Garbling from a Fixed-Key Blockcipher"
  * https://eprint.iacr.org/2013/426.pdf
  */
-class PRP { public:
+class PRP {
+public:
     AES_KEY aes;
 
     PRP(const char * key = nullptr) {
@@ -29,11 +30,9 @@ class PRP { public:
     }
 
     void permute_block(block *data, int nblocks) {
-        for(int i = 0; i < nblocks/AES_BATCH_SIZE; ++i) {
-            AES_ecb_encrypt_blks<AES_BATCH_SIZE>(data + i*AES_BATCH_SIZE, &aes);
+        for(int i = 0; i < nblocks; ++i) {
+            AES_ecb_encrypt_blks(&data[i], 1, &aes);
         }
-        int remain = nblocks % AES_BATCH_SIZE;
-        AES_ecb_encrypt_blks(data + nblocks - remain, remain, &aes);
     }
 };
 }

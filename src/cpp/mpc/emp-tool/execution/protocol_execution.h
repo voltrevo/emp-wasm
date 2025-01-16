@@ -14,7 +14,7 @@ public:
     static __thread ProtocolExecution * prot_exec;
 #endif
 
-    ProtocolExecution(int party = PUBLIC) : cur_party (party) {}
+    ProtocolExecution(int party = PUBLIC): cur_party (party) {}
     virtual ~ProtocolExecution() {}
     virtual void feed(block * lbls, int party, const bool* b, int nel) = 0;
     virtual void reveal(bool*out, int party, const block *lbls, int nel) = 0;

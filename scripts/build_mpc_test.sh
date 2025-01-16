@@ -7,10 +7,11 @@ clang++ \
     -std=c++17 \
     programs/test_mpc.cpp \
     -I src/cpp/mpc \
-    -I $(brew --prefix openssl)/include \
-    -L $(brew --prefix openssl)/lib \
-    -lcrypto \
-    -lssl \
+    -I $(brew --prefix mbedtls)/include \
+    -L $(brew --prefix mbedtls)/lib \
+    -lmbedtls \
+    -lmbedcrypto \
+    -lmbedx509 \
     -o build/mpc
 
 echo "Build successful, use ./scripts/mpc_test.sh to run the program."

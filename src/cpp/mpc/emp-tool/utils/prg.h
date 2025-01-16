@@ -1,54 +1,33 @@
 #ifndef EMP_PRG_H
 #define EMP_PRG_H
-#include "emp-tool/utils/block.h"
-#include "emp-tool/utils/aes.h"
-#include "emp-tool/utils/utils.h"
-#include "emp-tool/utils/constants.h"
-#include <climits>
-#include <memory>
-
-#ifdef ENABLE_RDSEED
-#include <x86intrin.h>
-#else
+#include "block.h"
+#include "aes.h"
 #include <random>
-#endif
 
 namespace emp {
 
-class PRG { public:
+class PRG {
+public:
     uint64_t counter = 0;
     AES_KEY aes;
     block key;
+
     PRG(const void * seed = nullptr, int id = 0) {
         if (seed != nullptr) {
             reseed((const block *)seed, id);
         } else {
             block v;
-#ifndef ENABLE_RDSEED
+            std::random_device rand_div;
             uint32_t * data = (uint32_t *)(&v);
-            std::random_device rand_div("/dev/urandom");
             for (size_t i = 0; i < sizeof(block) / sizeof(uint32_t); ++i)
                 data[i] = rand_div();
-#else
-            unsigned long long r0, r1;
-            int i = 0;
-            // To prevent an AMD CPU bug. (PR #156)
-            for(; i < 10; ++i)
-                if((_rdseed64_step(&r0) == 1) && (r0 != ULLONG_MAX) && (r0 != 0)) break;
-            if(i == 10)error("RDSEED FAILURE");
-
-            for(i = 0; i < 10; ++i)
-                if((_rdseed64_step(&r1) == 1) && (r1 != ULLONG_MAX) && (r1 != 0)) break;
-            if(i == 10)error("RDSEED FAILURE");
-
-            v = makeBlock(r0, r1);
-#endif
             reseed(&v, id);
         }
     }
+
     void reseed(const block* seed, uint64_t id = 0) {
-        block v = _mm_loadu_si128(seed);
-        v ^= makeBlock(0LL, id);
+        block v = *seed;
+        v.low ^= id;
         key = v;
         AES_set_encrypt_key(v, &aes);
         counter = 0;
@@ -87,18 +66,11 @@ class PRG { public:
     }
 
     void random_block(block * data, int nblocks=1) {
-        block tmp[AES_BATCH_SIZE];
-        for(int i = 0; i < nblocks/AES_BATCH_SIZE; ++i) {
-            for (int j = 0; j < AES_BATCH_SIZE; ++j)
-                tmp[j] = makeBlock(0LL, counter++);
-            AES_ecb_encrypt_blks<AES_BATCH_SIZE>(tmp, &aes);
-            memcpy(data + i*AES_BATCH_SIZE, tmp, AES_BATCH_SIZE*sizeof(block));
+        for(int i = 0; i < nblocks; ++i) {
+            block blk = makeBlock(0LL, counter++);
+            AES_ecb_encrypt_blks(&blk, 1, &aes);
+            data[i] = blk;
         }
-        int remain = nblocks % AES_BATCH_SIZE;
-        for (int j = 0; j < remain; ++j)
-            tmp[j] = makeBlock(0LL, counter++);
-        AES_ecb_encrypt_blks(tmp, remain, &aes);
-        memcpy(data + (nblocks/AES_BATCH_SIZE)*AES_BATCH_SIZE, tmp, remain*sizeof(block));
     }
 
     typedef uint64_t result_type;
@@ -119,5 +91,5 @@ class PRG { public:
     }
 };
 
-}
-#endif// PRP_H
+} // namespace emp
+#endif // EMP_PRG_H

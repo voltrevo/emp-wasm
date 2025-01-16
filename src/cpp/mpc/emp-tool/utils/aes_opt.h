@@ -1,118 +1,72 @@
 #ifndef EMP_AES_OPT_KS_H
 #define EMP_AES_OPT_KS_H
 
-#include "emp-tool/utils/aes.h"
+#include "emp-tool/utils/utils.h"
+#include "aes.h"  // Updated to include our standard AES functions without SIMD
 
 namespace emp {
-template<int NumKeys>
-static inline void ks_rounds(AES_KEY * keys, block con, block con3, block mask, int r) {
-    for (int i = 0; i < NumKeys; ++i) {
-        block key = keys[i].rd_key[r-1];
-        block x2 =_mm_shuffle_epi8(key, mask);
-        block aux = _mm_aesenclast_si128 (x2, con);
 
-        block globAux=_mm_slli_epi64(key, 32);
-        key=_mm_xor_si128(globAux, key);
-        globAux=_mm_shuffle_epi8(key, con3);
-        key=_mm_xor_si128(globAux, key);
-        keys[i].rd_key[r] = _mm_xor_si128(aux, key);
-    }
-}
 /*
- * AES key scheduling for 8 keys
- * [REF] Implementation of "Fast Garbling of Circuits Under Standard Assumptions"
- * https://eprint.iacr.org/2015/751.pdf
+ * AES key scheduling for multiple keys
  */
 template<int NumKeys>
-static inline void AES_opt_key_schedule(block* user_key, AES_KEY *keys) {
-    block con = _mm_set_epi32(1,1,1,1);
-    block con2 = _mm_set_epi32(0x1b,0x1b,0x1b,0x1b);
-    block con3 = _mm_set_epi32(0x07060504,0x07060504,0x0ffffffff,0x0ffffffff);
-    block mask = _mm_set_epi32(0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d);
-
+static inline void AES_opt_key_schedule(block* user_keys, AES_KEY *keys) {
     for(int i = 0; i < NumKeys; ++i) {
-        keys[i].rounds=10;
-        keys[i].rd_key[0] = user_key[i];
+        unsigned char key_bytes[16];
+        memcpy(key_bytes, &user_keys[i].low, 8);
+        memcpy(key_bytes + 8, &user_keys[i].high, 8);
+        // Initialize the mbed TLS cipher context
+        mbedtls_cipher_init(&keys[i]);
+        const mbedtls_cipher_info_t *cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB);
+        mbedtls_cipher_setup(&keys[i], cipher_info);
+        mbedtls_cipher_setkey(&keys[i], key_bytes, 128, MBEDTLS_ENCRYPT);
+        mbedtls_cipher_set_padding_mode(&keys[i], MBEDTLS_PADDING_NONE);
     }
-
-    ks_rounds<NumKeys>(keys, con, con3, mask, 1);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 2);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 3);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 4);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 5);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 6);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 7);
-    con=_mm_slli_epi32(con, 1);
-    ks_rounds<NumKeys>(keys, con, con3, mask, 8);
-    ks_rounds<NumKeys>(keys, con2, con3, mask, 9);
-    con2=_mm_slli_epi32(con2, 1);
-    ks_rounds<NumKeys>(keys, con2, con3, mask, 10);
 }
 
 /*
  * With numKeys keys, use each key to encrypt numEncs blocks.
  */
-#ifdef __x86_64__
 template<int numKeys, int numEncs>
 static inline void ParaEnc(block *blks, AES_KEY *keys) {
-    block * first = blks;
-    for(size_t i = 0; i < numKeys; ++i) {
-        block K = keys[i].rd_key[0];
-        for(size_t j = 0; j < numEncs; ++j) {
-            *blks = *blks ^ K;
-            ++blks;
-        }
-    }
+    for(int i = 0; i < numKeys; ++i) {
+        unsigned char *data = reinterpret_cast<unsigned char*>(blks + i * numEncs);
+        size_t outlen1 = 0, outlen2 = 0;
+        size_t total_len = numEncs * 16;  // Each block is 16 bytes
+        unsigned char *output = new unsigned char[total_len + 16];  // Allocate output buffer
 
-    for (unsigned int r = 1; r < 10; ++r) {
-        blks = first;
-        for(size_t i = 0; i < numKeys; ++i) {
-            block K = keys[i].rd_key[r];
-            for(size_t j = 0; j < numEncs; ++j) {
-                *blks = _mm_aesenc_si128(*blks, K);
-                ++blks;
-            }
-        }
-    }
+        // Reinitialize the context
+        mbedtls_cipher_reset(&keys[i]);
 
-    blks = first;
-    for(size_t i = 0; i < numKeys; ++i) {
-        block K = keys[i].rd_key[10];
-        for(size_t j = 0; j < numEncs; ++j) {
-            *blks = _mm_aesenclast_si128(*blks, K);
-            ++blks;
+        // Encrypt data
+        int ret = mbedtls_cipher_update(&keys[i], data, total_len, output, &outlen1);
+        if (ret != 0) {
+            error("Error in ParaEnc");
         }
+
+        // Finalize encryption
+        ret = mbedtls_cipher_finish(&keys[i], output + outlen1, &outlen2);
+        if (ret != 0) {
+            error("Error in ParaEnc");
+        }
+
+        // Verify that the total output length matches the input length
+        assert(outlen1 + outlen2 == total_len);
+
+        // Copy output back to data
+        memcpy(data, output, total_len);
+        delete[] output;  // Free allocated memory
     }
 }
-#elif __aarch64__
-template<int numKeys, int numEncs>
-static inline void ParaEnc(block *_blks, AES_KEY *keys) {
-    uint8x16_t * first = (uint8x16_t*)(_blks);
 
-    for (unsigned int r = 0; r < 9; ++r) {
-        auto blks = first;
-        for(size_t i = 0; i < numKeys; ++i) {
-            uint8x16_t K = vreinterpretq_u8_m128i(keys[i].rd_key[r]);
-            for(size_t j = 0; j < numEncs; ++j, ++blks)
-               *blks = vaesmcq_u8(vaeseq_u8(*blks, K));
-        }
-    }
-
-    auto blks = first;
-    for(size_t i = 0; i < numKeys; ++i) {
-        uint8x16_t K = vreinterpretq_u8_m128i(keys[i].rd_key[9]);
-        uint8x16_t K2 = vreinterpretq_u8_m128i(keys[i].rd_key[10]);
-        for(size_t j = 0; j < numEncs; ++j, ++blks)
-            *blks = vaeseq_u8(*blks, K) ^ K2;
+// Function to free the AES key contexts
+template<int NumKeys>
+static inline void AES_opt_key_free(AES_KEY *keys) {
+    for(int i = 0; i < NumKeys; ++i) {
+        mbedtls_cipher_free(&keys[i]);
     }
 }
-#endif
 
-}
-#endif
+} // namespace emp
+
+#endif // EMP_AES_OPT_KS_H
