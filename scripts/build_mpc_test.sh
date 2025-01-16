@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 clang++ \
     -O3 \
     -std=c++17 \
