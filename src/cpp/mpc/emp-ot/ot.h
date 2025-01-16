@@ -1,5 +1,5 @@
-#ifndef EMP_OT_H__
-#define EMP_OT_H__
+#ifndef EMP_OT_H
+#define EMP_OT_H
 #include <emp-tool/emp-tool.h>
 
 namespace emp {

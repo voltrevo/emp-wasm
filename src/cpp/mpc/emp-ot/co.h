@@ -1,7 +1,8 @@
-#ifndef EMP_OTCO_H__
-#define EMP_OTCO_H__
+#ifndef EMP_OTCO_H
+#define EMP_OTCO_H
 #include <emp-tool/emp-tool.h>
 #include "emp-ot/ot.h"
+
 namespace emp {
 
 /*
@@ -13,7 +14,7 @@ class OTCO: public OT { public:
     IOChannel io;
     Group *G = nullptr;
     bool delete_G = true;
-    OTCO(IOChannel& io, Group * _G = nullptr): io(io) {
+    OTCO(IOChannel io, Group * _G = nullptr): io(io) {
         if (_G == nullptr)
             G = new Group();
         else {
@@ -69,7 +70,7 @@ class OTCO: public OT { public:
 
         for(int64_t i = 0; i < length; ++i) {
             B[i] = G->mul_gen(bb[i]);
-            if (b[i]) 
+            if (b[i])
                 B[i] = B[i].add(A);
             io.send_pt(&B[i]);
         }
@@ -87,7 +88,7 @@ class OTCO: public OT { public:
             else
                 data[i] = data[i] ^ res[0];
         }
-        
+
         delete[] bb;
         delete[] B;
         delete[] As;
@@ -95,4 +96,4 @@ class OTCO: public OT { public:
 };
 
 }//namespace
-#endif// OT_CO_H__
+#endif// OT_CO_H

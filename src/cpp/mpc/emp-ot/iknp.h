@@ -1,9 +1,10 @@
-#ifndef EMP_IKNP_H__
-#define EMP_IKNP_H__
-#include "emp-ot/cot.h"
+#ifndef EMP_IKNP_H
+#define EMP_IKNP_H
 #include "emp-ot/co.h"
 
 namespace emp {
+
+const static int64_t ot_bsize = 8;
 
 /*
  * IKNP OT Extension
@@ -15,11 +16,15 @@ namespace emp {
  * [REF] With optimization of "Better Concrete Security for Half-Gates Garbling (in the Multi-Instance Setting)"
  * https://eprint.iacr.org/2019/1168.pdf
  */
-class IKNP: public COT { public:
-    using COT::io;
-    using COT::Delta;
+class IKNP : public OT {
+public:
+    IOChannel io;
 
-    OTCO* base_ot = nullptr;
+    MITCCRH<ot_bsize> mitccrh;
+    block Delta;
+    PRG cot_prg;
+
+    OTCO * base_ot = nullptr;
     bool setup = false, *extended_r = nullptr;
 
     const static int64_t block_size = 1024*2;
@@ -27,8 +32,10 @@ class IKNP: public COT { public:
     bool s[128], local_r[256];
     PRG prg, G0[128], G1[128];
     bool malicious = false;
-    block k0[128], k1[128]; 
-    IKNP(IOChannel& io, bool malicious = false): COT(io), malicious(malicious) {}
+    block k0[128], k1[128];
+
+    IKNP(IOChannel io, bool malicious = false): io(io) {}
+
     ~IKNP() {
         delete_array_null(extended_r);
     }
@@ -37,9 +44,9 @@ class IKNP: public COT { public:
         setup = true;
         if(in_s == nullptr)
             prg.random_bool(s, 128);
-        else 
+        else
             memcpy(s, in_s, 128);
-        
+
         if(in_k0 != nullptr) {
             memcpy(k0, in_k0, 128*sizeof(block));
         } else {
@@ -70,6 +77,7 @@ class IKNP: public COT { public:
             G1[i].reseed(&k1[i]);
         }
     }
+
     void send_pre(block * out, int64_t length) {
         if(not setup)
             setup_send();
@@ -81,6 +89,7 @@ class IKNP: public COT { public:
             send_pre_block(local_out, remain);
             memcpy(out+j*block_size, local_out, sizeof(block)*remain);
         }
+
         if(malicious)
             send_pre_block(local_out, 256);
     }
@@ -112,7 +121,7 @@ class IKNP: public COT { public:
             memcpy(tmp_bool_array, r+start_point, length % 128);
             block_r[length/128] = bool_to_block(tmp_bool_array);
         }
-        
+
         int64_t j = 0;
         for (; j < length/block_size; ++j)
             recv_pre_block(out+j*block_size, block_r + (j*block_size/128), block_size);
@@ -121,15 +130,18 @@ class IKNP: public COT { public:
             recv_pre_block(local_out, block_r + (j*block_size/128), remain);
             memcpy(out+j*block_size, local_out, sizeof(block)*remain);
         }
+
         if(malicious) {
-            block local_r_block[2]; 
+            block local_r_block[2];
             prg.random_bool(local_r, 256);
             local_r_block[0] = bool_to_block(local_r);
             local_r_block[1] = bool_to_block(local_r + 128);
             recv_pre_block(local_out, local_r_block, 256);
         }
+
         delete[] block_r;
     }
+
     void recv_pre_block(block * out, block * r, int64_t len) {
         block t[block_size];
         block tmp[block_size];
@@ -145,14 +157,58 @@ class IKNP: public COT { public:
         sse_trans((uint8_t *)(out), (uint8_t*)t, 128, block_size);
     }
 
-    void send_cot(block * data, int64_t length) override{
+    void send(const block* data0, const block* data1, int64_t length) override {
+        block * data = new block[length];
+        send_cot(data, length);
+        block s;
+        cot_prg.random_block(&s, 1);
+        io.send_block(&s,1);
+        mitccrh.setS(s);
+        io.flush();
+        block pad[2*ot_bsize];
+        for(int64_t i = 0; i < length; i+=ot_bsize) {
+            for(int64_t j = i; j < min(i+ot_bsize, length); ++j) {
+                pad[2*(j-i)] = data[j];
+                pad[2*(j-i)+1] = data[j] ^ Delta;
+            }
+            mitccrh.hash<ot_bsize, 2>(pad);
+            for(int64_t j = i; j < min(i+ot_bsize, length); ++j) {
+                pad[2*(j-i)] = pad[2*(j-i)] ^ data0[j];
+                pad[2*(j-i)+1] = pad[2*(j-i)+1] ^ data1[j];
+            }
+            io.send_data(pad, 2*sizeof(block)*min(ot_bsize,length-i));
+        }
+        delete[] data;
+    }
+
+    void recv(block* data, const bool* r, int64_t length) override {
+        recv_cot(data, r, length);
+        block s;
+        io.recv_block(&s,1);
+        mitccrh.setS(s);
+        io.flush();
+
+        block res[2*ot_bsize];
+        block pad[ot_bsize];
+        for(int64_t i = 0; i < length; i+=ot_bsize) {
+            memcpy(pad, data+i, min(ot_bsize,length-i)*sizeof(block));
+            mitccrh.hash<ot_bsize, 1>(pad);
+            io.recv_data(res, 2*sizeof(block)*min(ot_bsize,length-i));
+            for(int64_t j = 0; j < ot_bsize and j < length-i; ++j) {
+                data[i+j] = res[2*j+r[i+j]] ^ pad[j];
+            }
+        }
+    }
+
+    void send_cot(block * data, int64_t length) {
         send_pre(data, length);
 
         if(malicious)
             if(!send_check(data, length))
                 error("OT Extension check failed");
     }
-    void recv_cot(block* data, const bool * b, int64_t length) override {
+
+    void recv_cot(block* data, const bool * b, int64_t length) {
         recv_pre(data, b, length);
         if(malicious)
             recv_check(data, b, length);
@@ -197,7 +253,7 @@ class IKNP: public COT { public:
         q[0] = q[0] ^ tmp[0];
         q[1] = q[1] ^ tmp[1];
 
-        return cmpBlock(q, t, 2);    
+        return cmpBlock(q, t, 2);
     }
     void recv_check(block * out, const bool* r, int64_t length) {
         block select[2] = {zero_block, all_one_block};
@@ -214,7 +270,7 @@ class IKNP: public COT { public:
             vector_inn_prdt_sum_no_red<block_size>(tmp, chi, out+i*block_size);
             t[0] = t[0] ^ tmp[0];
             t[1] = t[1] ^ tmp[1];
-            for(int64_t j = 0; j < block_size; ++j) 
+            for(int64_t j = 0; j < block_size; ++j)
                 x = x ^ (chi[j] & select[r[i*block_size+j]]);
         }
         int64_t remain = length % block_size;
@@ -226,7 +282,7 @@ class IKNP: public COT { public:
             for(int64_t j = 0; j < remain; ++j)
                 x = x ^ (chi[j] & select[r[length - remain + j]]);
         }
-        
+
         {
             chiPRG.random_block(chi, 256);
             vector_inn_prdt_sum_no_red<256>(tmp, chi, local_out);
