@@ -327,7 +327,7 @@ class Fpre {
                     io.recv_block(&tmp, 1);
                     if(getLSB(MAC[i])) tmp = tmp ^ DD;
                     if (!cmpBlock(&tmp, &MAC[i], 1))
-						throw std::runtime_error(std::to_string(i) + " WRONG ABIT2!");
+                        throw std::runtime_error(std::to_string(i) + " WRONG ABIT2!");
                 }
 
             } else {
@@ -336,7 +336,7 @@ class Fpre {
                     io.recv_data(tmp, 3);
                     bool res = ((tmp[0] != getLSB(MAC[3*i]) ) && (tmp[1] != getLSB(MAC[3*i+1])));
                     if(res != (tmp[2] != getLSB(MAC[3*i+2])) ) {
-						throw std::runtime_error(std::to_string(i) + " WRONG!");
+                        throw std::runtime_error(std::to_string(i) + " WRONG!");
                     }
                 }
                 block DD;
@@ -347,7 +347,7 @@ class Fpre {
                     io.recv_block(&tmp, 1);
                     if(getLSB(MAC[i])) tmp = tmp ^ DD;
                     if (!cmpBlock(&tmp, &MAC[i], 1))
-						throw std::runtime_error(std::to_string(i) + " WRONG ABIT2!");
+                        throw std::runtime_error(std::to_string(i) + " WRONG ABIT2!");
                 }
 
                 io.send_block(&Delta, 1);

@@ -5,10 +5,10 @@
 namespace emp {
 
 class OT { public:
-	virtual void send(const block* data0, const block* data1, int64_t length) = 0;
-	virtual void recv(block* data, const bool* b, int64_t length)  = 0;
+    virtual void send(const block* data0, const block* data1, int64_t length) = 0;
+    virtual void recv(block* data, const bool* b, int64_t length)  = 0;
 
-	virtual ~OT() {}
+    virtual ~OT() {}
 };
 
 }

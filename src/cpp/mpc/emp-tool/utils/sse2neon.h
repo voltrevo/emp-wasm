@@ -3264,8 +3264,8 @@ FORCE_INLINE __m128i _mm_and_si128(__m128i a, __m128i b)
 // elements in a and then AND with b, and store the results in dst.
 //
 //   FOR j := 0 to 1
-// 	     i := j*64
-// 	     dst[i+63:i] := ((NOT a[i+63:i]) AND b[i+63:i])
+//          i := j*64
+//          dst[i+63:i] := ((NOT a[i+63:i]) AND b[i+63:i])
 //   ENDFOR
 //
 // https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_andnot_pd

@@ -56,13 +56,13 @@ int main(int argc, char** argv) {
     std::vector<bool> out = twopc.online(in, true);
     cout << "online:\t" << party << "\t" << time_from(t1) << endl;
 
-	string res = "";
-	for (int i = 0; i < out.size(); ++i)
-		res += (out[i] ? "1" : "0");
-	cout << res << endl;
-	cout << binary_to_hex(res) << endl;
-	cout << sha1_empty << endl;
-	cout << (binary_to_hex(res) == string(sha1_empty) ? "GOOD!" : "BAD!") << endl;
+    string res = "";
+    for (int i = 0; i < out.size(); ++i)
+        res += (out[i] ? "1" : "0");
+    cout << res << endl;
+    cout << binary_to_hex(res) << endl;
+    cout << sha1_empty << endl;
+    cout << (binary_to_hex(res) == string(sha1_empty) ? "GOOD!" : "BAD!") << endl;
 
     return 0;
 }

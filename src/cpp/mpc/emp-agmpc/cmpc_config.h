@@ -5,14 +5,14 @@ const static int fpre_threads = 1;
 #define LOCALHOST
 
 #ifdef __clang__
-	#define __MORE_FLUSH
+    #define __MORE_FLUSH
 #endif
 
 //#define __debug
 const static char *IP[] = {""
-,	"127.0.0.1"
-,	"127.0.0.1"
-,	"127.0.0.1"};
+,    "127.0.0.1"
+,    "127.0.0.1"
+,    "127.0.0.1"};
 
 const static bool lan_network = false;
 #endif// __C2PC_CONFIG
