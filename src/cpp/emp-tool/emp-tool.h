@@ -9,6 +9,7 @@ using std::min;
 
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/constants.h"
+#include "emp-tool/utils/crh.h"
 #include "emp-tool/utils/hash.h"
 #include "emp-tool/utils/prg.h"
 #include "emp-tool/utils/prp.h"
