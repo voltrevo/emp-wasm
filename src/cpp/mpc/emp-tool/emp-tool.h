@@ -8,12 +8,10 @@
 
 #include "emp-tool/utils/block.h"
 #include "emp-tool/utils/constants.h"
+#include "emp-tool/utils/crh.h"
 #include "emp-tool/utils/hash.h"
 #include "emp-tool/utils/prg.h"
 #include "emp-tool/utils/prp.h"
-#include "emp-tool/utils/crh.h"
-#include "emp-tool/utils/ccrh.h"
-#include "emp-tool/utils/tccrh.h"
 #include "emp-tool/utils/utils.h"
 #include "emp-tool/utils/ThreadPool.h"
 #include "emp-tool/utils/group.h"
