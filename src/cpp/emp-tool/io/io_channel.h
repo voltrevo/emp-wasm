@@ -11,9 +11,10 @@ namespace emp {
 class IOChannel {
 private:
     std::shared_ptr<IRawIO> raw_io;
-    std::shared_ptr<uint64_t> counter = std::make_shared<uint64_t>(0);
 
 public:
+    std::shared_ptr<uint64_t> counter = std::make_shared<uint64_t>(0);
+
     IOChannel(std::shared_ptr<IRawIO> raw_io): raw_io(raw_io) {}
 
     void send_data(const void * data, size_t nbyte) {
