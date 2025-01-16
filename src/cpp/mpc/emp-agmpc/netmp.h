@@ -6,8 +6,8 @@ using namespace emp;
 
 template<int nP>
 class NetIOMP { public:
-	NetIO*ios[nP+1];
-	NetIO*ios2[nP+1];
+	IOChannel*ios[nP+1];
+	IOChannel*ios2[nP+1];
 	int party;
 	bool sent[nP+1];
 	NetIOMP(int party, int port) {
@@ -17,47 +17,43 @@ class NetIOMP { public:
 			if(i == party) {
 #ifdef LOCALHOST
 				usleep(1000);
-				ios[j] = new NetIO(IP[j], port+2*(i*nP+j), true);
+				ios[j] = new IOChannel(std::make_shared<NetIO>(IP[j], port+2*(i*nP+j)));
 #else
 				usleep(1000);
-				ios[j] = new NetIO(IP[j], port+2*(i), true);
+				ios[j] = new IOChannel(std::make_shared<NetIO>(IP[j], port+2*(i)));
 #endif
-				ios[j]->set_nodelay();	
 
 #ifdef LOCALHOST
 				usleep(1000);
-				ios2[j] = new NetIO(nullptr, port+2*(i*nP+j)+1, true);
+				ios2[j] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)+1));
 #else
 				usleep(1000);
-				ios2[j] = new NetIO(nullptr, port+2*(j)+1, true);
+				ios2[j] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(j)+1));
 #endif
-				ios2[j]->set_nodelay();	
 			} else if(j == party) {
 #ifdef LOCALHOST
 				usleep(1000);
-				ios[i] = new NetIO(nullptr, port+2*(i*nP+j), true);
+				ios[i] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)));
 #else
 				usleep(1000);
-				ios[i] = new NetIO(nullptr, port+2*(i), true);
+				ios[i] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(i)));
 #endif
-				ios[i]->set_nodelay();	
 
 #ifdef LOCALHOST
 				usleep(1000);
-				ios2[i] = new NetIO(IP[i], port+2*(i*nP+j)+1, true);
+				ios2[i] = new IOChannel(std::make_shared<NetIO>(IP[i], port+2*(i*nP+j)+1));
 #else
 				usleep(1000);
-				ios2[i] = new NetIO(IP[i], port+2*(j)+1, true);
+				ios2[i] = new IOChannel(std::make_shared<NetIO>(IP[i], port+2*(j)+1));
 #endif
-				ios2[i]->set_nodelay();	
 			}
 		}
 	}
 	int64_t count() {
 		int64_t res = 0;
 		for(int i = 1; i <= nP; ++i) if(i != party){
-			res += ios[i]->counter;
-			res += ios2[i]->counter;
+			res += *ios[i]->counter;
+			res += *ios2[i]->counter;
 		}
 		return res;
 	}
@@ -90,10 +86,10 @@ class NetIOMP { public:
 				ios2[src]->recv_data(data, len);
 		}
 	}
-	NetIO*& get(size_t idx, bool b = false){
+	IOChannel& get(size_t idx, bool b = false){
 		if (b)
-			return ios[idx];
-		else return ios2[idx];
+			return *ios[idx];
+		else return *ios2[idx];
 	}
 	void flush(int idx = 0) {
 		if(idx == 0) {

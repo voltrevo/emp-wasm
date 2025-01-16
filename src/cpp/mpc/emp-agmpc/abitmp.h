@@ -7,8 +7,8 @@
 
 template<int nP>
 class ABitMP { public:
-	IKNP<NetIO> *abit1[nP+1];
-	IKNP<NetIO> *abit2[nP+1];
+	IKNP *abit1[nP+1];
+	IKNP *abit2[nP+1];
 	NetIOMP<nP> *io;
 	ThreadPool * pool;
 	int party;
@@ -31,11 +31,11 @@ class ABitMP { public:
 
 		for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
 			if(i == party) {
-					abit1[j] = new IKNP<NetIO>(io->get(j, false));
-					abit2[j] = new IKNP<NetIO>(io->get(j, true));
+					abit1[j] = new IKNP(io->get(j, false));
+					abit2[j] = new IKNP(io->get(j, true));
 			} else if (j == party) {
-					abit2[i] = new IKNP<NetIO>(io->get(i, false));
-					abit1[i] = new IKNP<NetIO>(io->get(i, true));
+					abit2[i] = new IKNP(io->get(i, false));
+					abit1[i] = new IKNP(io->get(i, true));
 			}
 		}
 

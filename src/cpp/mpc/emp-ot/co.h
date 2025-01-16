@@ -4,19 +4,16 @@
 #include "emp-ot/ot.h"
 namespace emp {
 
-template<typename IO>
 /*
  * Chou Orlandi OT
  * [REF] Implementation of "The Simplest Protocol for Oblivious Transfer"
  * https://eprint.iacr.org/2015/267.pdf
  */
-
-class OTCO: public OT<IO> { public:
-	IO* io;
+class OTCO: public OT { public:
+	IOChannel io;
 	Group *G = nullptr;
 	bool delete_G = true;
-	OTCO(IO* io, Group * _G = nullptr) {
-		this->io = io;
+	OTCO(IOChannel& io, Group * _G = nullptr): io(io) {
 		if (_G == nullptr)
 			G = new Group();
 		else {
@@ -38,21 +35,21 @@ class OTCO: public OT<IO> { public:
 
 		G->get_rand_bn(a);
 		A = G->mul_gen(a);
-		io->send_pt(&A);
+		io.send_pt(&A);
 		AaInv = A.mul(a);
 		AaInv = AaInv.inv();
 
 		for(int64_t i = 0; i < length; ++i) {
-			io->recv_pt(G, &B[i]);
+			io.recv_pt(G, &B[i]);
 			B[i] = B[i].mul(a);
 			BA[i] = B[i].add(AaInv);
 		}
-		io->flush();
+		io.flush();
 
 		for(int64_t i = 0; i < length; ++i) {
 			res[0] = Hash::KDF(B[i], i) ^ data0[i];
 			res[1] = Hash::KDF(BA[i], i) ^ data1[i];
-			io->send_data(res, 2*sizeof(block));
+			io.send_data(res, 2*sizeof(block));
 		}
 
 		delete[] BA;
@@ -68,22 +65,22 @@ class OTCO: public OT<IO> { public:
 		for(int64_t i = 0; i < length; ++i)
 			G->get_rand_bn(bb[i]);
 
-		io->recv_pt(G, &A);
+		io.recv_pt(G, &A);
 
 		for(int64_t i = 0; i < length; ++i) {
 			B[i] = G->mul_gen(bb[i]);
 			if (b[i]) 
 				B[i] = B[i].add(A);
-			io->send_pt(&B[i]);
+			io.send_pt(&B[i]);
 		}
-		io->flush();
+		io.flush();
 
 		for(int64_t i = 0; i < length; ++i)
 			As[i] = A.mul(bb[i]);
 
 		block res[2];
 		for(int64_t i = 0; i < length; ++i) {
-			io->recv_data(res, 2*sizeof(block));
+			io.recv_data(res, 2*sizeof(block));
 			data[i] = Hash::KDF(As[i], i);
 			if(b[i])
 				data[i] = data[i] ^ res[1];
