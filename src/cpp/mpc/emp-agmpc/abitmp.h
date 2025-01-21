@@ -68,11 +68,19 @@ class ABitMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            abit1[party2]->send_cot(KEY[party2], length);
-            io->flush(party2);
+            if (party < party2) {
+                abit2[party2]->recv_cot(MAC[party2], data, length);
+                io->flush(party2);
 
-            abit2[party2]->recv_cot(MAC[party2], data, length);
-            io->flush(party2);
+                abit1[party2]->send_cot(KEY[party2], length);
+                io->flush(party2);
+            } else {
+                abit1[party2]->send_cot(KEY[party2], length);
+                io->flush(party2);
+
+                abit2[party2]->recv_cot(MAC[party2], data, length);
+                io->flush(party2);
+            }
         }
 #ifdef __debug
         check_MAC(io, MAC, KEY, data, Delta, length, party);

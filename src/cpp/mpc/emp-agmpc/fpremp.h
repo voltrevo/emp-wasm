@@ -132,27 +132,53 @@ class FpreMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            {
-                block bH[2], tmpH[2];
-                for(int k = 0; k < length*bucket_size; ++k) {
-                    bH[0] = tKEY[party2][3*k];
-                    bH[1] = bH[0] ^ Delta;
-                    HnID(prps+party2, bH, bH, 2*k, 2, tmpH);
-                    tKEYphi[party2][k] = bH[0];
-                    bH[1] = bH[0] ^ bH[1];
-                    bH[1] = phi[k] ^ bH[1];
-                    io->send_data(party2, &bH[1], sizeof(block));
+            if (party < party2) {
+                {
+                    block bH[2], tmpH[2];
+                    for(int k = 0; k < length*bucket_size; ++k) {
+                        bH[0] = tKEY[party2][3*k];
+                        bH[1] = bH[0] ^ Delta;
+                        HnID(prps+party2, bH, bH, 2*k, 2, tmpH);
+                        tKEYphi[party2][k] = bH[0];
+                        bH[1] = bH[0] ^ bH[1];
+                        bH[1] = phi[k] ^ bH[1];
+                        io->send_data(party2, &bH[1], sizeof(block));
+                    }
+                    io->flush(party2);
                 }
-                io->flush(party2);
-            }
 
-            {
-                block bH;
-                for(int k = 0; k < length*bucket_size; ++k) {
-                    io->recv_data(party2, &bH, sizeof(block));
-                    block hin = sigma(tMAC[party2][3*k]) ^ makeBlock(0, 2*k+tr[3*k]);
-                    tMACphi[party2][k] = prps2[party2].H(hin);
-                    if(tr[3*k])tMACphi[party2][k] = tMACphi[party2][k] ^ bH;
+                {
+                    block bH;
+                    for(int k = 0; k < length*bucket_size; ++k) {
+                        io->recv_data(party2, &bH, sizeof(block));
+                        block hin = sigma(tMAC[party2][3*k]) ^ makeBlock(0, 2*k+tr[3*k]);
+                        tMACphi[party2][k] = prps2[party2].H(hin);
+                        if(tr[3*k])tMACphi[party2][k] = tMACphi[party2][k] ^ bH;
+                    }
+                }
+            } else {
+                {
+                    block bH;
+                    for(int k = 0; k < length*bucket_size; ++k) {
+                        io->recv_data(party2, &bH, sizeof(block));
+                        block hin = sigma(tMAC[party2][3*k]) ^ makeBlock(0, 2*k+tr[3*k]);
+                        tMACphi[party2][k] = prps2[party2].H(hin);
+                        if(tr[3*k])tMACphi[party2][k] = tMACphi[party2][k] ^ bH;
+                    }
+                }
+
+                {
+                    block bH[2], tmpH[2];
+                    for(int k = 0; k < length*bucket_size; ++k) {
+                        bH[0] = tKEY[party2][3*k];
+                        bH[1] = bH[0] ^ Delta;
+                        HnID(prps+party2, bH, bH, 2*k, 2, tmpH);
+                        tKEYphi[party2][k] = bH[0];
+                        bH[1] = bH[0] ^ bH[1];
+                        bH[1] = phi[k] ^ bH[1];
+                        io->send_data(party2, &bH[1], sizeof(block));
+                    }
+                    io->flush(party2);
                 }
             }
         }
