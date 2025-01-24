@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     int port, party;
     parse_party_and_port(argv, &party, &port);
 
-    const static int nP = 3;
+    const static int nP = 4;
     NetIOMP<nP> io(party, port);
     NetIOMP<nP> io2(party, port+2*(nP+1)*(nP+1)+1);
     NetIOMP<nP> *ios[2] = {&io, &io2};
@@ -42,10 +42,16 @@ int main(int argc, char** argv) {
             if (party == 2) {
                 input.assign_plaintext_bit(i, false);
             }
-        } else {
+        } else if (i < 300) {
             input.assign_party(i, 3);
 
             if (party == 3) {
+                input.assign_plaintext_bit(i, false);
+            }
+        } else {
+            input.assign_party(i, 4);
+
+            if (party == 4) {
                 input.assign_plaintext_bit(i, false);
             }
         }
