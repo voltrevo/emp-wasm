@@ -61,7 +61,8 @@ private:
         size_t flat_index = 0;
         size_t stride = 1;
 
-        for (size_t i = 0; i < dimensions.size(); ++i) {
+        // Iterate dimensions in reverse for row-major order
+        for (size_t i = dimensions.size(); i-- > 0;) {
             if (indices[i] >= dimensions[i]) {
                 throw std::out_of_range("Index out of bounds.");
             }
