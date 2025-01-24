@@ -25,9 +25,16 @@ int main(int argc, char** argv) {
     mpc->function_dependent();
     cout <<"FUNC_DEP:\t"<<party<<"\n";
 
-    bool in[512]; bool out[160];
-    memset(in, false, 512);
-    mpc->online(in, out);
+    // Get first 100 bits from party 1
+    // Get next 100 bits from party 2
+    // Get remianing 312 bits from party 3
+	int start[] = {0, 0, 100, 200};
+	int end[] = {0, 100, 200, 512};
+
+    bool in[512] = {false};
+    bool out[160] = {false};
+
+    mpc->online(in, out, start, end);
     uint64_t band2 = io.count();
     cout <<"bandwidth\t"<<party<<"\t"<<band2<<endl;
     cout <<"ONLINE:\t"<<party<<"\n";
