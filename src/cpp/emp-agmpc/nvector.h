@@ -12,11 +12,18 @@
 template <typename T>
 class NVector {
 public:
+    // Default constructor
+    NVector() : total_size(0) {}
+
     // Constructor taking sizes of each dimension
     template <typename... Dims>
     explicit NVector(Dims... dims) {
-        static_assert(sizeof...(Dims) > 0, "At least one dimension must be specified.");
+        resize(dims...);
+    }
 
+    // Resize method
+    template <typename... Dims>
+    void resize(Dims... dims) {
         // Store the sizes of each dimension
         dimensions = {static_cast<size_t>(dims)...};
 
