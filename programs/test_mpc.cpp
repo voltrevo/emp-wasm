@@ -25,27 +25,51 @@ int main(int argc, char** argv) {
     mpc->function_dependent();
     cout <<"FUNC_DEP:\t"<<party<<"\n";
 
-    // Get first 100 bits from party 1
-    // Get next 100 bits from party 2
-    // Get remianing 312 bits from party 3
-	int start[] = {0, 0, 100, 200};
-	int end[] = {0, 100, 200, 512};
+    // The split of input into n1 and n2 is meaningless here,
+    // what matters is that there are n1+n2 input bits.
+    FlexIn<nP> input(cf.n1 + cf.n2, party);
 
-    bool in[512] = {false};
-    bool out[160] = {false};
+    for (int i = 0; i < cf.n1 + cf.n2; i++) {
+        if (i < 100) {
+            input.assign_party(i, 1);
 
-    mpc->online(in, out, start, end);
+            if (party == 1) {
+                input.assign_plaintext_bit(i, false);
+            }
+        } else if (i < 200) {
+            input.assign_party(i, 2);
+
+            if (party == 2) {
+                input.assign_plaintext_bit(i, false);
+            }
+        } else {
+            input.assign_party(i, 3);
+
+            if (party == 3) {
+                input.assign_plaintext_bit(i, false);
+            }
+        }
+    }
+
+    FlexOut<nP> output(cf.n3, party);
+
+    for (int i = 0; i < cf.n3; i++) {
+        // All parties receive the output.
+        output.assign_party(i, 0);
+    }
+
+    mpc->online(&input, &output);
     uint64_t band2 = io.count();
     cout <<"bandwidth\t"<<party<<"\t"<<band2<<endl;
     cout <<"ONLINE:\t"<<party<<"\n";
-    if(party == 1) {
-        string res = "";
-        for(int i = 0; i < cf.n3; ++i)
-            res += (out[i]?"1":"0");
-        cout << hex_to_binary(string(out3))<<endl;
-        cout << res<<endl;
-        cout << (res == hex_to_binary(string(out3))? "GOOD!":"BAD!")<<endl<<flush;
-    }
+
+    string res = "";
+    for(int i = 0; i < cf.n3; ++i)
+        res += (output.get_plaintext_bit(i)?"1":"0");
+    cout << hex_to_binary(string(out3))<<endl;
+    cout << res<<endl;
+    cout << (res == hex_to_binary(string(out3))? "GOOD!":"BAD!")<<endl<<flush;
+
     delete mpc;
     return 0;
 }

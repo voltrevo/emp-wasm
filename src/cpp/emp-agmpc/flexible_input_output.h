@@ -141,9 +141,9 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    io->recv_data(party2, open_bit_shares_for_plaintext_input_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->send_data(party2, open_bit_shares_for_plaintext_input_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->recv_data(party2, open_bit_shares_for_plaintext_input_recv[party2].data(), sizeof(BitWithMac) * len);
                     io->flush(party2);
                 }
             }
@@ -201,9 +201,9 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    io->recv_data(party2, masked_input_recv[party2].data(), sizeof(char) * len);
-                    io->flush(party2);
                     io->send_data(party2, masked_input_sent.data(), sizeof(char) * len);
+                    io->flush(party2);
+                    io->recv_data(party2, masked_input_recv[party2].data(), sizeof(char) * len);
                     io->flush(party2);
                 }
             }
@@ -301,9 +301,9 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    io->recv_data(party2, open_bit_shares_for_authenticated_bits_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->send_data(party2, open_bit_shares_for_authenticated_bits_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->recv_data(party2, open_bit_shares_for_authenticated_bits_recv[party2].data(), sizeof(BitWithMac) * len);
                     io->flush(party2);
                 }
             }
@@ -374,9 +374,9 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    io->recv_data(party2, open_bit_shares_for_unauthenticated_bits_recv[party2].data(), sizeof(char) * len);
-                    io->flush(party2);
                     io->send_data(party2, open_bit_shares_for_unauthenticated_bits_send.data(), sizeof(char) * len);
+                    io->flush(party2);
+                    io->recv_data(party2, open_bit_shares_for_unauthenticated_bits_recv[party2].data(), sizeof(char) * len);
                     io->flush(party2);
                 }
             }
@@ -433,9 +433,9 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    io->recv_data(party2, open_bit_shares_for_public_input_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->send_data(party2, open_bit_shares_for_public_input_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->recv_data(party2, open_bit_shares_for_public_input_recv[party2].data(), sizeof(BitWithMac) * len);
                     io->flush(party2);
                 }
             }
@@ -670,9 +670,9 @@ public:
                 if ((i < j) and (i == party or j == party)) {
                     int party2 = i + j - party;
 
-                    io->recv_data(party2, output_mask_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->send_data(party2, output_mask_send[party2].data(), sizeof(BitWithMac) * len);
+                    io->flush(party2);
+                    io->recv_data(party2, output_mask_recv[party2].data(), sizeof(BitWithMac) * len);
                     io->flush(party2);
                 }
             }
