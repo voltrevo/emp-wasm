@@ -1,14 +1,38 @@
 #ifndef EMP_AGMPC_FLEXIBLE_INPUT_OUTPUT_H
 #define EMP_AGMPC_FLEXIBLE_INPUT_OUTPUT_H
 
+#include "vec.h"
+
 using namespace std;
 
-template<int nP>
 struct AuthBitShare
 {
+    int nP;
     bool bit_share;
-    block key[nP + 1];
-    block mac[nP + 1];
+    Vec<block> key;
+    Vec<block> mac;
+
+    AuthBitShare(int nP) {
+        this->nP = nP;
+        this->bit_share = false;
+        key.resize(nP + 1);
+        mac.resize(nP + 1);
+    }
+
+    AuthBitShare(const AuthBitShare& abit) {
+        this->nP = abit.nP;
+        this->bit_share = abit.bit_share;
+        key = abit.key;
+        mac = abit.mac;
+    }
+
+    AuthBitShare& operator=(const AuthBitShare& abit) {
+        this->nP = abit.nP;
+        this->bit_share = abit.bit_share;
+        key = abit.key;
+        mac = abit.mac;
+        return *this;
+    }
 };
 
 struct BitWithMac
@@ -38,18 +62,15 @@ public:
     //  0 represents public input/output,
 
     vector<bool> plaintext_assignment; // if `party` provides the value for this bit, the plaintext value is here
-    vector<AuthBitShare<nP>> authenticated_share_assignment; // if this bit is from authenticated shares, the authenticated share is stored here
+    vector<AuthBitShare> authenticated_share_assignment; // if this bit is from authenticated shares, the authenticated share is stored here
 
     FlexIn(int len, int party) {
         this->len = len;
         this->party = party;
 
-        AuthBitShare<nP> empty_abit;
-        memset(&empty_abit, 0, sizeof(AuthBitShare<nP>));
-
         party_assignment.resize(len, 0);
         plaintext_assignment.resize(len, false);
-        authenticated_share_assignment.resize(len, empty_abit);
+        authenticated_share_assignment.resize(len, AuthBitShare(nP));
     }
 
     ~FlexIn() {
@@ -78,9 +99,9 @@ public:
         plaintext_assignment[pos] = cur_bit;
     }
 
-    void assign_authenticated_bitshare(int pos, AuthBitShare<nP> *abit) {
+    void assign_authenticated_bitshare(int pos, AuthBitShare *abit) {
         assert(party_assignment[pos] == -1);
-        memcpy(&authenticated_share_assignment[pos], abit, sizeof(AuthBitShare<nP>));
+        authenticated_share_assignment[pos] = *abit;
     }
 
     void input(bool *masked_input_ret) {
@@ -93,9 +114,9 @@ public:
          *         for an un-authenticated bit, the input mask XOR with the input share is broadcast;
          *        for an authenticated bit share, they are used to masked the previously data (and then checking its opening)
          */
-        vector<AuthBitShare<nP>> input_mask;
+        vector<AuthBitShare> input_mask;
         for(int i = 0; i < len; i++) {
-            AuthBitShare<nP> abit;
+            AuthBitShare abit(nP);
             abit.bit_share = value[i];
             for(int j = 1; j <= nP; j++) {
                 if(j != party) {
@@ -230,10 +251,9 @@ public:
          * Compute the authenticated bit share to the new circuit
          * by XOR-ing with the input mask
          */
-        vector<AuthBitShare<nP>> authenticated_bitshares_new_circuit;
+        vector<AuthBitShare> authenticated_bitshares_new_circuit;
         for(int i = 0; i < len; i++) {
-            AuthBitShare<nP> new_entry;
-            memset(&new_entry, 0, sizeof(AuthBitShare<nP>));
+            AuthBitShare new_entry(nP);
             if(party_assignment[i] == -1) {
                 new_entry.bit_share = authenticated_share_assignment[i].bit_share ^ input_mask[i].bit_share;
                 for (int j = 1; j <= nP; j++) {
@@ -519,14 +539,13 @@ public:
     //  0 represents public output
 
     vector<bool> plaintext_results; // if `party` provides the value for this bit, the plaintext value is here
-    vector<AuthBitShare<nP>> authenticated_share_results; // if this bit is from authenticated shares, the authenticated share is stored here
+    vector<AuthBitShare> authenticated_share_results; // if this bit is from authenticated shares, the authenticated share is stored here
 
     FlexOut(int len, int party) {
         this->len = len;
         this->party = party;
 
-        AuthBitShare<nP> empty_abit;
-        memset(&empty_abit, 0, sizeof(AuthBitShare<nP>));
+        AuthBitShare empty_abit(nP);
 
         party_assignment.resize(len, 0);
         plaintext_results.resize(len, false);
@@ -565,9 +584,9 @@ public:
         return plaintext_results[pos];
     }
 
-    AuthBitShare<nP> get_authenticated_bitshare(int pos) {
+    AuthBitShare get_authenticated_bitshare(int pos) {
         assert(party_assignment[pos] == -1);
-        return authenticated_share_results[pos];
+        return authenticated_share_results;
     }
 
     int get_length() {
