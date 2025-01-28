@@ -68,31 +68,38 @@ class NetIOMP { public:
     }
 
     void send_data(int dst, const void * data, size_t len) {
-        if(dst != 0 and dst!= party) {
-            if(party < dst)
-                ios[dst]->send_data(data, len);
-            else
-                ios2[dst]->send_data(data, len);
-            sent[dst] = true;
-        }
+        assert(dst != 0);
+        assert(dst != party);
+
+        if(party < dst)
+            ios[dst]->send_data(data, len);
+        else
+            ios2[dst]->send_data(data, len);
+
+        sent[dst] = true;
+
 #ifdef __MORE_FLUSH
         flush(dst);
 #endif
     }
     void recv_data(int src, void * data, size_t len) {
-        if(src != 0 and src!= party) {
-            if(sent[src])flush(src);
-            if(src < party)
-                ios[src]->recv_data(data, len);
-            else
-                ios2[src]->recv_data(data, len);
-        }
+        assert(src != 0);
+        assert(src != party);
+
+        if(sent[src])
+            flush(src);
+
+        if(src < party)
+            ios[src]->recv_data(data, len);
+        else
+            ios2[src]->recv_data(data, len);
     }
     IOChannel& get(size_t idx, bool b = false){
         if (b)
             return *ios[idx];
         else return *ios2[idx];
     }
+
     void flush(int idx = 0) {
         if(idx == 0) {
             for(int i = 1; i <= nP; ++i)
