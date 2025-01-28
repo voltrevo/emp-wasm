@@ -9,22 +9,24 @@
 #include "nvec.h"
 
 using namespace emp;
-template<int nP>
+template<int nP_deprecated>
 class FpreMP { public:
+    int nP;
     int party;
-    NetIOMP<nP> * io;
-    ABitMP<nP>* abit;
+    NetIOMP<nP_deprecated> * io;
+    ABitMP<nP_deprecated>* abit;
     block Delta;
     CRH * prps;
     CRH * prps2;
     PRG * prgs;
     PRG prg;
     int ssp;
-    FpreMP(NetIOMP<nP> * io[2], int party, bool * _delta = nullptr, int ssp = 40) {
+    FpreMP(int nP, NetIOMP<nP_deprecated> * io[2], int party, bool * _delta = nullptr, int ssp = 40) {
+        this->nP = nP;
         this->party = party;
         this->io = io[0];
         this ->ssp = ssp;
-        abit = new ABitMP<nP>(io[1], party, _delta, ssp);
+        abit = new ABitMP<nP_deprecated>(io[1], party, _delta, ssp);
         Delta = abit->Delta;
         prps = new CRH[nP+1];
         prps2 = new CRH[nP+1];
@@ -231,7 +233,7 @@ class FpreMP { public:
         if(!cmpBlock(&X.at(1, 0), &X.at(2, 0), ssp)) error("AND check");
 
         //land -> and
-        block S = sampleRandom<nP>(io, &prg, party);
+        block S = sampleRandom<nP_deprecated>(io, &prg, party);
 
         int * ind = new int[length*bucket_size];
         int *location = new int[length*bucket_size];

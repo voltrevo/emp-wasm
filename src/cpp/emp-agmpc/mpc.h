@@ -67,7 +67,7 @@ class CMPC { public:
         }
         num_in = cf->n1+cf->n2;
         total_pre = num_in + num_ands + 3*ssp;
-        fpre = new FpreMP<nP_deprecated>(io, party, _delta, ssp);
+        fpre = new FpreMP<nP_deprecated>(nP, io, party, _delta, ssp);
         Delta = fpre->Delta;
 
         if(party == 1) {
