@@ -41,18 +41,19 @@ struct BitWithMac
     block mac;
 };
 
-template<int nP>
 class FlexIn
 {
 public:
+
+    int nP;
 
     int len{};
     int party{};
 
     bool cmpc_associated = false;
     bool *value;
-    block *key[nP + 1];
-    block *mac[nP + 1];
+    NVec<block>* key;
+    NVec<block>* mac;
     NetIOMP* io;
     block Delta;
 
@@ -64,7 +65,8 @@ public:
     vector<bool> plaintext_assignment; // if `party` provides the value for this bit, the plaintext value is here
     vector<AuthBitShare> authenticated_share_assignment; // if this bit is from authenticated shares, the authenticated share is stored here
 
-    FlexIn(int len, int party) {
+    FlexIn(int nP, int len, int party) {
+        this->nP = nP;
         this->len = len;
         this->party = party;
 
@@ -82,10 +84,8 @@ public:
     void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key,  NetIOMP *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
         this->value = associated_value;
-        for(int j = 1; j <= nP; j++) {
-            this->mac[j] = &associated_mac.at(j, 0);
-            this->key[j] = &associated_key.at(j, 0);
-        }
+        this->mac = &associated_mac;
+        this->key = &associated_key;
         this->io = associated_io;
         this->Delta = associated_Delta;
     }
@@ -120,8 +120,8 @@ public:
             abit.bit_share = value[i];
             for(int j = 1; j <= nP; j++) {
                 if(j != party) {
-                    abit.key[j] = key[j][i];
-                    abit.mac[j] = mac[j][i];
+                    abit.key[j] = key->at(j, i);
+                    abit.mac[j] = mac->at(j, i);
                 }
             }
             input_mask.emplace_back(abit);

@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 
     // The split of input into n1 and n2 is meaningless here,
     // what matters is that there are n1+n2 input bits.
-    FlexIn<nP> input(cf.n1 + cf.n2, party);
+    FlexIn input(nP, cf.n1 + cf.n2, party);
 
     for (int i = 0; i < cf.n1 + cf.n2; i++) {
         if (i < 100) {
