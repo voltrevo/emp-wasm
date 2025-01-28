@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    FlexOut<nP> output(cf.n3, party);
+    FlexOut output(nP, cf.n3, party);
 
     for (int i = 0; i < cf.n3; i++) {
         // All parties receive the output.

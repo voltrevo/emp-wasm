@@ -517,19 +517,20 @@ public:
     }
 };
 
-template<int nP>
 class FlexOut
 {
 public:
+
+    int nP;
 
     int len{};
     int party{};
 
     bool cmpc_associated = false;
     bool *value;
-    block *key[nP + 1];
-    block *mac[nP + 1];
-    block *eval_labels[nP + 1];
+    NVec<block>* key;
+    NVec<block>* mac;
+    NVec<block>* eval_labels;
     NetIOMP * io;
     block Delta;
     block *labels;
@@ -541,7 +542,8 @@ public:
     vector<bool> plaintext_results; // if `party` provides the value for this bit, the plaintext value is here
     vector<AuthBitShare> authenticated_share_results; // if this bit is from authenticated shares, the authenticated share is stored here
 
-    FlexOut(int len, int party) {
+    FlexOut(int nP, int len, int party) {
+        this->nP = nP;
         this->len = len;
         this->party = party;
 
@@ -562,14 +564,10 @@ public:
         this->cmpc_associated = true;
         this->value = associated_value;
         this->labels = &associated_labels.at(0);
-        for (int j = 1; j <= nP; j++) {
-            this->mac[j] = &associated_mac.at(j, 0);
-            this->key[j] = &associated_key.at(j, 0);
-        }
+        this->mac = &associated_mac;
+        this->key = &associated_key;
         if (party == ALICE){
-            for (int j = 2; j <= nP; j++) {
-                this->eval_labels[j] = &associated_eval_labels.at(j, 0);
-            }
+            this->eval_labels = &associated_eval_labels;
         }
         this->io = associated_io;
         this->Delta = associated_Delta;
@@ -582,11 +580,6 @@ public:
     bool get_plaintext_bit(int pos) {
         assert(party_assignment[pos] == party || party_assignment[pos] == 0);
         return plaintext_results[pos];
-    }
-
-    AuthBitShare get_authenticated_bitshare(int pos) {
-        assert(party_assignment[pos] == -1);
-        return authenticated_share_results;
     }
 
     int get_length() {
@@ -609,7 +602,7 @@ public:
             for (int j = 2; j <= nP; j++) {
                 output_wire_label_send[j].resize(len);
                 for(int i = 0; i < len; i++) {
-                    output_wire_label_send[j][i] = eval_labels[j][output_shift + i];
+                    output_wire_label_send[j][i] = eval_labels->at(j, output_shift + i);
                 }
             }
 
@@ -665,13 +658,13 @@ public:
                 // public output, all parties receive the mbit
                 for(int j = 1; j <= nP; j++){
                     output_mask_send[j][i].bit_share = value[output_shift + i];
-                    output_mask_send[j][i].mac = mac[j][output_shift + i];
+                    output_mask_send[j][i].mac = mac->at(j, output_shift + i);
                 }
             } else {
                 // only one party is supposed to receive the mbit
                 int cur_party = party_assignment[i];
                 output_mask_send[cur_party][i].bit_share = value[output_shift + i];
-                output_mask_send[cur_party][i].mac = mac[cur_party][output_shift + i];
+                output_mask_send[cur_party][i].mac = mac->at(cur_party, output_shift + i);
             }
         }
 
@@ -707,7 +700,7 @@ public:
                 for (int i = 0; i < len; i++) {
                     if (party_assignment[i] == party || party_assignment[i] == 0) {
                         block supposed_mac = Delta & select_mask[output_mask_recv[j][i].bit_share? 1 : 0];
-                        supposed_mac ^= key[j][output_shift + i];
+                        supposed_mac ^= key->at(j, output_shift + i);
 
                         block provided_mac = output_mask_recv[j][i].mac;
 
@@ -731,8 +724,8 @@ public:
                     authenticated_share_results[i].bit_share = value[output_shift + i] ^ masked_output[i];
                     for(int j = 1; j <= nP; j++) {
                         if(j != party) {
-                            authenticated_share_results[i].mac[j] = mac[j][output_shift + i];
-                            authenticated_share_results[i].key[j] = key[j][output_shift + i];
+                            authenticated_share_results[i].mac[j] = mac->at(j, output_shift + i);
+                            authenticated_share_results[i].key[j] = key->at(j, output_shift + i);
                         }
                     }
                 }
@@ -743,13 +736,13 @@ public:
                     authenticated_share_results[i].bit_share = value[output_shift + i];
                     for(int j = 1; j <= nP; j++) {
                         if(j != party) {
-                            authenticated_share_results[i].mac[j] = mac[j][output_shift + i];
+                            authenticated_share_results[i].mac[j] = mac->at(j, output_shift + i);
                             if(j == ALICE) {
                                 authenticated_share_results[i].key[j] =
-                                        key[j][output_shift + i] ^ (Delta & select_mask[masked_output[i] ? 1 : 0]);
+                                        key->at(j, output_shift + i) ^ (Delta & select_mask[masked_output[i] ? 1 : 0]);
                                 // change the MAC key for the first party
                             } else {
-                                authenticated_share_results[i].key[j] = key[j][output_shift + i];
+                                authenticated_share_results[i].key[j] = key->at(j, output_shift + i);
                             }
                         }
                     }

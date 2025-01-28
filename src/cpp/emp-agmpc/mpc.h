@@ -332,7 +332,7 @@ class CMPC { public:
         else return "F";
     }
 
-    void online (FlexIn* input, FlexOut<nP_deprecated> *output) {
+    void online (FlexIn* input, FlexOut* output) {
         bool * mask_input = new bool[cf->num_wire];
         input->associate_cmpc(&value[0], mac, key, io, Delta);
         input->input(mask_input);
