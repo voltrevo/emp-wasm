@@ -2,8 +2,10 @@
 
 set -euo pipefail
 
+# Note: -D__debug is noticeably slower, but is good for testing
 clang++ \
     -O3 \
+    -D__debug \
     -std=c++17 \
     programs/test_2pc.cpp \
     -I src/cpp/ \

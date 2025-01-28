@@ -116,8 +116,7 @@ block sampleRandom(int nP, NetIOMP * io, PRG * prg, int party) {
     return result;
 }
 
-template<int nP>
-void check_MAC(NetIOMP * io, const NVec<block>& MAC, const NVec<block>& KEY, bool * r, block Delta, int length, int party) {
+void check_MAC(int nP, NetIOMP * io, const NVec<block>& MAC, const NVec<block>& KEY, bool * r, block Delta, int length, int party) {
     block * tmp = new block[length];
     block tD;
     for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j) {
@@ -140,8 +139,7 @@ void check_MAC(NetIOMP * io, const NVec<block>& MAC, const NVec<block>& KEY, boo
         cerr<<"check_MAC pass!\n"<<flush;
 }
 
-template<int nP>
-void check_correctness(NetIOMP* io, bool * r, int length, int party) {
+void check_correctness(int nP, NetIOMP* io, bool * r, int length, int party) {
     if (party == 1) {
         bool * tmp1 = new bool[length*3];
         bool * tmp2 = new bool[length*3];

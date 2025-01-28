@@ -89,7 +89,7 @@ class ABitMP { public:
             }
         }
 #ifdef __debug
-        check_MAC(io, MAC, KEY, data, Delta, length, party);
+        check_MAC(nP, io, MAC, KEY, data, Delta, length, party);
 #endif
     }
 

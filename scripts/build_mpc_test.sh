@@ -2,9 +2,11 @@
 
 set -euo pipefail
 
+# Note: -D__debug does not seem to impact performance, and is good for testing
 clang++ \
     -O3 \
     -std=c++17 \
+    -D__debug \
     programs/test_mpc.cpp \
     -I src/cpp \
     -I $(brew --prefix mbedtls)/include \

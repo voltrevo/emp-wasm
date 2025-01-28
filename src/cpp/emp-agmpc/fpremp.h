@@ -92,7 +92,7 @@ class FpreMP { public:
         }
 
 #ifdef __debug
-        check_correctness(io, &tr[0], length*bucket_size, party);
+        check_correctness(nP, io, &tr[0], length*bucket_size, party);
 #endif
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
@@ -109,7 +109,7 @@ class FpreMP { public:
             delete[] tmp;
         }
 #ifdef __debug
-        check_MAC(io, tMAC, tKEY, tr, Delta, length*bucket_size*3, party);
+        check_MAC(nP, io, tMAC, tKEY, &tr[0], Delta, length*bucket_size*3, party);
 #endif
         abit->check(tMAC, tKEY, &tr[0], length*bucket_size*3 + 3*ssp);
         //check compute phi
@@ -180,7 +180,7 @@ class FpreMP { public:
         for(int i = 0; i < length*bucket_size; ++i) xs[i] = tr[3*i];
 
 #ifdef __debug
-        check_MAC_phi(tMACphi, tKEYphi, phi, xs, length*bucket_size);
+        check_MAC_phi(tMACphi, tKEYphi, &phi[0], xs, length*bucket_size);
 #endif
         //tKEYphti use as H
         for(int k = 0; k < length*bucket_size; ++k) {
@@ -299,8 +299,8 @@ class FpreMP { public:
         }
 
 #ifdef __debug
-        check_MAC(io, MAC, KEY, r, Delta, length*3, party);
-        check_correctness(io, r, length, party);
+        check_MAC(nP, io, MAC, KEY, r, Delta, length*3, party);
+        check_correctness(nP, io, r, length, party);
 #endif
 
 //        ret.get();
