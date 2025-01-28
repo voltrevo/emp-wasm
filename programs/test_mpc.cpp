@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     NetIOMP *ios[2] = {&io, &io2};
     BristolFormat cf(circuit_file_location.c_str());
 
-    CMPC<nP>* mpc = new CMPC<nP>(nP, ios, party, &cf);
+    CMPC* mpc = new CMPC(nP, ios, party, &cf);
     cout <<"Setup:\t"<<party<<"\n";
 
     mpc->function_independent();

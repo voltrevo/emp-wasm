@@ -9,11 +9,10 @@
 #include <emp-tool/emp-tool.h>
 using namespace emp;
 
-template <int nP_deprecated>
 class CMPC { public:
     const static int SSP = 5;//5*8 in fact...
     const block MASK = makeBlock(0x0ULL, 0xFFFFFULL);
-    FpreMP<nP_deprecated>* fpre = nullptr;
+    FpreMP* fpre = nullptr;
 
     int nP;
 
@@ -67,7 +66,7 @@ class CMPC { public:
         }
         num_in = cf->n1+cf->n2;
         total_pre = num_in + num_ands + 3*ssp;
-        fpre = new FpreMP<nP_deprecated>(nP, io, party, _delta, ssp);
+        fpre = new FpreMP(nP, io, party, _delta, ssp);
         Delta = fpre->Delta;
 
         if(party == 1) {

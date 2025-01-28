@@ -10,7 +10,6 @@
 #include "nvec.h"
 #include "vec.h"
 
-template<int nP_deprecated>
 class ABitMP { public:
     int nP;
     Vec<std::optional<IKNP>> abit1;
