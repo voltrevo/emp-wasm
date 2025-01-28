@@ -1,23 +1,33 @@
 #ifndef ABIT_MP_H
 #define ABIT_MP_H
+
+#include <optional>
+
 #include <emp-tool/emp-tool.h>
 #include <emp-ot/emp-ot.h>
 #include "netmp.h"
 #include "helper.h"
 #include "nvec.h"
+#include "vec.h"
 
-template<int nP>
+template<int nP_deprecated>
 class ABitMP { public:
-    IKNP *abit1[nP+1];
-    IKNP *abit2[nP+1];
-    NetIOMP<nP> *io;
+    int nP;
+    Vec<std::optional<IKNP>> abit1;
+    Vec<std::optional<IKNP>> abit2;
+    NetIOMP<nP_deprecated> *io;
     int party;
     PRG prg;
     block Delta;
     Hash hash;
     int ssp;
     block * pretable;
-    ABitMP(NetIOMP<nP>* io, int party, bool * _tmp = nullptr, int ssp = 40) {
+    ABitMP(int nP, NetIOMP<nP_deprecated>* io, int party, bool * _tmp = nullptr, int ssp = 40)
+    :
+        nP(nP),
+        abit1(nP+1),
+        abit2(nP+1)
+    {
         this->ssp = ssp;
         this->io = io;
         this->party = party;
@@ -30,11 +40,11 @@ class ABitMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
             if(i == party) {
-                    abit1[j] = new IKNP(io->get(j, false));
-                    abit2[j] = new IKNP(io->get(j, true));
+                    abit1[j].emplace(io->get(j, false));
+                    abit2[j].emplace(io->get(j, true));
             } else if (j == party) {
-                    abit2[i] = new IKNP(io->get(i, false));
-                    abit1[i] = new IKNP(io->get(i, true));
+                    abit2[i].emplace(io->get(i, false));
+                    abit1[i].emplace(io->get(i, true));
             }
         }
 
@@ -59,12 +69,7 @@ class ABitMP { public:
         else
             Delta = abit1[1]->Delta;
     }
-    ~ABitMP() {
-        for(int i = 1; i <= nP; ++i) if( i!= party ) {
-            delete abit1[i];
-            delete abit2[i];
-        }
-    }
+
     void compute(NVec<block>& MAC, NVec<block>& KEY, bool* data, int length) {
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;

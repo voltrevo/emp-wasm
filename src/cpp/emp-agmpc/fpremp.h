@@ -26,7 +26,7 @@ class FpreMP { public:
         this->party = party;
         this->io = io[0];
         this ->ssp = ssp;
-        abit = new ABitMP<nP_deprecated>(io[1], party, _delta, ssp);
+        abit = new ABitMP<nP_deprecated>(nP, io[1], party, _delta, ssp);
         Delta = abit->Delta;
         prps = new CRH[nP+1];
         prps2 = new CRH[nP+1];
