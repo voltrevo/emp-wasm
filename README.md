@@ -122,7 +122,7 @@ Requirements:
 
 ## Uncertain Changes
 
-For most of the changes I'm reasonably confident that I preserved behavior, but there some things I'm less confident about:
+For most of the changes I'm reasonably confident that I preserved behavior, but there some things I'm less confident about, including:
 
 - send and recv swapped for bob in `Fpre::generate` (see TODO comment)
 - after removing threading, I also moved everything to a single io channel
