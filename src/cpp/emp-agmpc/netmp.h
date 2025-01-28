@@ -103,19 +103,13 @@ class NetIOMP { public:
         return firstBucket ? *ios[party2] : *ios2[party2];
     }
 
-    void flush(int idx = 0) {
-        if(idx == 0) {
-            for(int i = 1; i <= nP; ++i)
-                if(i != party) {
-                    ios[i]->flush();
-                    ios2[i]->flush();
-                }
-        } else {
-            if(party < idx)
-                ios[idx]->flush();
-            else
-                ios2[idx]->flush();
-        }
+    void flush(int idx) {
+        assert(idx != 0);
+
+        if(party < idx)
+            ios[idx]->flush();
+        else
+            ios2[idx]->flush();
     }
 };
 
