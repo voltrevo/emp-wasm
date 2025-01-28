@@ -107,16 +107,6 @@ class NetIOMP { public:
                 ios2[idx]->flush();
         }
     }
-    // void sync() {
-    //     for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
-    //         if(i == party) {
-    //             ios[j]->sync();
-    //             ios2[j]->sync();
-    //         } else if(j == party) {
-    //             ios[i]->sync();
-    //             ios2[i]->sync();
-    //         }
-    //     }
-    // }
 };
-#endif //NETIOMP_H
+
+#endif // NETIOMP_H
