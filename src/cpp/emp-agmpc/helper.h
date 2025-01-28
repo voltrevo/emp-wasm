@@ -3,6 +3,7 @@
 #include <emp-tool/emp-tool.h>
 #include "cmpc_config.h"
 #include "netmp.h"
+#include "nvec.h"
 #include <future>
 using namespace emp;
 using std::future;
@@ -117,13 +118,13 @@ block sampleRandom(NetIOMP<nP> * io, PRG * prg, int party) {
 }
 
 template<int nP>
-void check_MAC(NetIOMP<nP> * io, block * MAC[nP+1], block * KEY[nP+1], bool * r, block Delta, int length, int party) {
+void check_MAC(NetIOMP<nP> * io, const NVec<block>& MAC, const NVec<block>& KEY, bool * r, block Delta, int length, int party) {
     block * tmp = new block[length];
     block tD;
     for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j) {
         if(party == i) {
             io->send_data(j, &Delta, sizeof(block));
-            io->send_data(j, KEY[j], sizeof(block)*length);
+            io->send_data(j, &KEY.at(j, 0), sizeof(block)*length);
             io->flush(j);
         } else if(party == j) {
             io->recv_data(i, &tD, sizeof(block));
@@ -131,7 +132,7 @@ void check_MAC(NetIOMP<nP> * io, block * MAC[nP+1], block * KEY[nP+1], bool * r,
             for(int k = 0; k < length; ++k) {
                 if(r[k])tmp[k] = tmp[k] ^ tD;
             }
-            if(!cmpBlock(MAC[i], tmp, length))
+            if(!cmpBlock(&MAC.at(i, 0), tmp, length))
                 error("check_MAC failed!");
         }
     }

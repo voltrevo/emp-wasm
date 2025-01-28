@@ -6,6 +6,7 @@
 #include "abitmp.h"
 #include "netmp.h"
 #include "cmpc_config.h"
+#include "nvec.h"
 
 using namespace emp;
 template<int nP>
@@ -44,87 +45,77 @@ class FpreMP { public:
             return 4;
         else return 5;
     }
-    void compute(block * MAC[nP+1], block * KEY[nP+1], bool * r, int length) {
+    void compute(NVec<block>& MAC, NVec<block>& KEY, bool* r, int length) {
         int64_t bucket_size = get_bucket_size(length);
-        block * tMAC[nP+1];
-        block * tKEY[nP+1];
-        block * tKEYphi[nP+1];
-        block * tMACphi[nP+1];
-        block * phi;
-        block *X [nP+1];
-        bool *tr = new bool[length*bucket_size*3+3*ssp];
-        phi = new block[length*bucket_size];
-        bool *s[nP+1], *e = new bool[length*bucket_size];
-        for(int i = 1; i <= nP; ++i) {
-            tMAC[i] = new block[length*bucket_size*3+3*ssp];
-            tKEY[i] = new block[length*bucket_size*3+3*ssp];
-            tKEYphi[i] = new block[length*bucket_size+3*ssp];
-            tMACphi[i] = new block[length*bucket_size+3*ssp];
-            X[i] = new block[ssp];
-        }
-        for(int i = 0; i <= nP; ++i) {
-            s[i] = new bool[length*bucket_size];
-            memset(s[i], 0, length*bucket_size);
-        }
-        prg.random_bool(tr, length*bucket_size*3+3*ssp);
+        NVec<block> tMAC(nP+1, length*bucket_size*3+3*ssp);
+        NVec<block> tKEY(nP+1, length*bucket_size*3+3*ssp);
+        NVec<block> tKEYphi(nP+1, length*bucket_size*3+3*ssp);
+        NVec<block> tMACphi(nP+1, length*bucket_size*3+3*ssp);
+        Vec<block> phi(length*bucket_size);
+        NVec<block> X(nP+1, ssp);
+        Vec<bool> tr(length*bucket_size*3+3*ssp);
+        NVec<bool> s(nP+1, length*bucket_size);
+        Vec<bool> e(length*bucket_size);
+
+        prg.random_bool(&tr[0], length*bucket_size*3+3*ssp);
         // memset(tr, false, length*bucket_size*3+3*ssp);
-        abit->compute(tMAC, tKEY, tr, length*bucket_size*3 + 3*ssp);
+        abit->compute(tMAC, tKEY, &tr[0], length*bucket_size*3 + 3*ssp);
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j ) {
             if(i == party) {
-                prgs[j].random_bool(s[j], length*bucket_size);
+                prgs[j].random_bool(&s.at(j, 0), length*bucket_size);
                 for(int k = 0; k < length*bucket_size; ++k) {
-                    uint8_t data = garble(tKEY[j], tr, s[j], k, j);
+                    uint8_t data = garble(&tKEY.at(j, 0), &tr[0], &s.at(j, 0), k, j);
                     io->send_data(j, &data, 1);
-                    s[j][k] = (s[j][k] != (tr[3*k] and tr[3*k+1]));
+                    s.at(j, k) = (s.at(j, k) != (tr[3*k] and tr[3*k+1]));
                 }
                 io->flush(j);
             } else if (j == party) {
                 for(int k = 0; k < length*bucket_size; ++k) {
                     uint8_t data = 0;
                     io->recv_data(i, &data, 1);
-                    bool tmp = evaluate(data, tMAC[i], tr, k, i);
-                    s[i][k] = (tmp != (tr[3*k] and tr[3*k+1]));
+                    bool tmp = evaluate(data, &tMAC.at(i, 0), &tr[0], k, i);
+                    s.at(i, k) = (tmp != (tr[3*k] and tr[3*k+1]));
                 }
             }
         }
         for(int k = 0; k < length*bucket_size; ++k) {
-            s[0][k] = (tr[3*k] and tr[3*k+1]);
+            s.at(0, k) = (tr[3*k] and tr[3*k+1]);
             for(int i = 1; i <= nP; ++i)
                 if (i != party) {
-                    s[0][k] = (s[0][k] != s[i][k]);
+                    s.at(0, k) = (s.at(0, k) != s.at(i, k));
                 }
-            e[k] = (s[0][k] != tr[3*k+2]);
-            tr[3*k+2] = s[0][k];
+            e[k] = (s.at(0, k) != tr[3*k+2]);
+            tr[3*k+2] = s.at(0, k);
         }
 
 #ifdef __debug
-        check_correctness(io, tr, length*bucket_size, party);
+        check_correctness(io, &tr[0], length*bucket_size, party);
 #endif
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            io->send_data(party2, e, length*bucket_size);
+            io->send_data(party2, &e[0], length*bucket_size);
             io->flush(party2);
 
             bool * tmp = new bool[length*bucket_size];
             io->recv_data(party2, tmp, length*bucket_size);
             for(int k = 0; k < length*bucket_size; ++k) {
                 if(tmp[k])
-                    tKEY[party2][3*k+2] = tKEY[party2][3*k+2] ^ Delta;
+                    tKEY.at(party2, 3*k+2) = tKEY.at(party2, 3*k+2) ^ Delta;
             }
             delete[] tmp;
         }
 #ifdef __debug
         check_MAC(io, tMAC, tKEY, tr, Delta, length*bucket_size*3, party);
 #endif
-        abit->check(tMAC, tKEY, tr, length*bucket_size*3 + 3*ssp);
+        abit->check(tMAC, tKEY, &tr[0], length*bucket_size*3 + 3*ssp);
         //check compute phi
         for(int k = 0; k < length*bucket_size; ++k) {
             phi[k] = zero_block;
             for(int i = 1; i <= nP; ++i) if (i != party) {
-                phi[k] = phi[k] ^ tKEY[i][3*k+1];
-                phi[k] = phi[k] ^ tMAC[i][3*k+1];
+                phi[k] = phi[k] ^ tKEY.at(i, 3*k+1);
+                phi[k] = phi[k] ^ tMAC.at(i, 3*k+1);
             }
             if(tr[3*k+1])phi[k] = phi[k] ^ Delta;
         }
@@ -136,10 +127,10 @@ class FpreMP { public:
                 {
                     block bH[2], tmpH[2];
                     for(int k = 0; k < length*bucket_size; ++k) {
-                        bH[0] = tKEY[party2][3*k];
+                        bH[0] = tKEY.at(party2, 3*k);
                         bH[1] = bH[0] ^ Delta;
                         HnID(prps+party2, bH, bH, 2*k, 2, tmpH);
-                        tKEYphi[party2][k] = bH[0];
+                        tKEYphi.at(party2, k) = bH[0];
                         bH[1] = bH[0] ^ bH[1];
                         bH[1] = phi[k] ^ bH[1];
                         io->send_data(party2, &bH[1], sizeof(block));
@@ -151,9 +142,9 @@ class FpreMP { public:
                     block bH;
                     for(int k = 0; k < length*bucket_size; ++k) {
                         io->recv_data(party2, &bH, sizeof(block));
-                        block hin = sigma(tMAC[party2][3*k]) ^ makeBlock(0, 2*k+tr[3*k]);
-                        tMACphi[party2][k] = prps2[party2].H(hin);
-                        if(tr[3*k])tMACphi[party2][k] = tMACphi[party2][k] ^ bH;
+                        block hin = sigma(tMAC.at(party2, 3*k)) ^ makeBlock(0, 2*k+tr[3*k]);
+                        tMACphi.at(party2, k) = prps2[party2].H(hin);
+                        if(tr[3*k])tMACphi.at(party2, k) = tMACphi.at(party2, k) ^ bH;
                     }
                 }
             } else {
@@ -161,19 +152,19 @@ class FpreMP { public:
                     block bH;
                     for(int k = 0; k < length*bucket_size; ++k) {
                         io->recv_data(party2, &bH, sizeof(block));
-                        block hin = sigma(tMAC[party2][3*k]) ^ makeBlock(0, 2*k+tr[3*k]);
-                        tMACphi[party2][k] = prps2[party2].H(hin);
-                        if(tr[3*k])tMACphi[party2][k] = tMACphi[party2][k] ^ bH;
+                        block hin = sigma(tMAC.at(party2, 3*k)) ^ makeBlock(0, 2*k+tr[3*k]);
+                        tMACphi.at(party2, k) = prps2[party2].H(hin);
+                        if(tr[3*k])tMACphi.at(party2, k) = tMACphi.at(party2, k) ^ bH;
                     }
                 }
 
                 {
                     block bH[2], tmpH[2];
                     for(int k = 0; k < length*bucket_size; ++k) {
-                        bH[0] = tKEY[party2][3*k];
+                        bH[0] = tKEY.at(party2, 3*k);
                         bH[1] = bH[0] ^ Delta;
                         HnID(prps+party2, bH, bH, 2*k, 2, tmpH);
-                        tKEYphi[party2][k] = bH[0];
+                        tKEYphi.at(party2, k) = bH[0];
                         bH[1] = bH[0] ^ bH[1];
                         bH[1] = phi[k] ^ bH[1];
                         io->send_data(party2, &bH[1], sizeof(block));
@@ -191,19 +182,19 @@ class FpreMP { public:
 #endif
         //tKEYphti use as H
         for(int k = 0; k < length*bucket_size; ++k) {
-            tKEYphi[party][k] = zero_block;
+            tKEYphi.at(party, k) = zero_block;
             for(int i = 1; i <= nP; ++i) if (i != party) {
-                tKEYphi[party][k] = tKEYphi[party][k] ^ tKEYphi[i][k];
-                tKEYphi[party][k] = tKEYphi[party][k] ^ tMACphi[i][k];
-                tKEYphi[party][k] = tKEYphi[party][k] ^ tKEY[i][3*k+2];
-                tKEYphi[party][k] = tKEYphi[party][k] ^ tMAC[i][3*k+2];
+                tKEYphi.at(party, k) = tKEYphi.at(party, k) ^ tKEYphi.at(i, k);
+                tKEYphi.at(party, k) = tKEYphi.at(party, k) ^ tMACphi.at(i, k);
+                tKEYphi.at(party, k) = tKEYphi.at(party, k) ^ tKEY.at(i, 3*k+2);
+                tKEYphi.at(party, k) = tKEYphi.at(party, k) ^ tMAC.at(i, 3*k+2);
             }
-            if(tr[3*k])     tKEYphi[party][k] = tKEYphi[party][k] ^ phi[k];
-            if(tr[3*k+2])tKEYphi[party][k] = tKEYphi[party][k] ^ Delta;
+            if(tr[3*k])     tKEYphi.at(party, k) = tKEYphi.at(party, k) ^ phi[k];
+            if(tr[3*k+2])tKEYphi.at(party, k) = tKEYphi.at(party, k) ^ Delta;
         }
 
 #ifdef __debug
-        check_zero(tKEYphi[party], length*bucket_size);
+        check_zero(&tKEYphi.at(party, 0), length*bucket_size);
 #endif
 
         block prg_key = sampleRandom(io, &prg, party);
@@ -212,9 +203,9 @@ class FpreMP { public:
         bool * tmp = new bool[length*bucket_size];
         for(int i = 0; i < ssp; ++i) {
             prgf.random_bool(tmp, length*bucket_size);
-            X[party][i] = inProd(tmp, tKEYphi[party], length*bucket_size);
+            X.at(party, i) = inProd(tmp, &tKEYphi.at(party, 0), length*bucket_size);
         }
-        Hash::hash_once(dgst[party], X[party], sizeof(block)*ssp);
+        Hash::hash_once(dgst[party], &X.at(party, 0), sizeof(block)*ssp);
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
@@ -226,18 +217,18 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            io->send_data(party2, X[party], sizeof(block)*ssp);
-            io->recv_data(party2, X[party2], sizeof(block)*ssp);
+            io->send_data(party2, &X.at(party, 0), sizeof(block)*ssp);
+            io->recv_data(party2, &X.at(party2, 0), sizeof(block)*ssp);
             char tmp[Hash::DIGEST_SIZE];
-            Hash::hash_once(tmp, X[party2], sizeof(block)*ssp);
+            Hash::hash_once(tmp, &X.at(party2, 0), sizeof(block)*ssp);
             res2.push_back(strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0);
         }
         if(checkCheat(res2)) error("commitment");
 
         for(int i = 2; i <= nP; ++i)
-            xorBlocks_arr(X[1], X[1], X[i], ssp);
-        for(int i = 0; i < ssp; ++i)X[2][i] = zero_block;
-        if(!cmpBlock(X[1], X[2], ssp)) error("AND check");
+            xorBlocks_arr(&X.at(1, 0), &X.at(1, 0), &X.at(i, 0), ssp);
+        for(int i = 0; i < ssp; ++i)X.at(2, i) = zero_block;
+        if(!cmpBlock(&X.at(1, 0), &X.at(2, 0), ssp)) error("AND check");
 
         //land -> and
         block S = sampleRandom<nP>(io, &prg, party);
@@ -264,17 +255,17 @@ class FpreMP { public:
             for(int j = 0; j < bucket_size-1; ++j)
                 d[party][(bucket_size-1)*i+j] = tr[3*location[i*bucket_size]+1] != tr[3*location[i*bucket_size+1+j]+1];
             for(int j = 1; j <= nP; ++j) if (j!= party) {
-                memcpy(MAC[j]+3*i, tMAC[j]+3*location[i*bucket_size], 3*sizeof(block));
-                memcpy(KEY[j]+3*i, tKEY[j]+3*location[i*bucket_size], 3*sizeof(block));
+                memcpy(&MAC.at(j, 3*i), &tMAC.at(j, 3*location[i*bucket_size]), 3*sizeof(block));
+                memcpy(&KEY.at(j, 3*i), &tKEY.at(j, 3*location[i*bucket_size]), 3*sizeof(block));
                 for(int k = 1; k < bucket_size; ++k) {
-                    MAC[j][3*i] = MAC[j][3*i] ^ tMAC[j][3*location[i*bucket_size+k]];
-                    KEY[j][3*i] = KEY[j][3*i] ^ tKEY[j][3*location[i*bucket_size+k]];
+                    MAC.at(j, 3*i) = MAC.at(j, 3*i) ^ tMAC.at(j, 3*location[i*bucket_size+k]);
+                    KEY.at(j, 3*i) = KEY.at(j, 3*i) ^ tKEY.at(j, 3*location[i*bucket_size+k]);
 
-                    MAC[j][3*i+2] = MAC[j][3*i+2] ^ tMAC[j][3*location[i*bucket_size+k]+2];
-                    KEY[j][3*i+2] = KEY[j][3*i+2] ^ tKEY[j][3*location[i*bucket_size+k]+2];
+                    MAC.at(j, 3*i+2) = MAC.at(j, 3*i+2) ^ tMAC.at(j, 3*location[i*bucket_size+k]+2);
+                    KEY.at(j, 3*i+2) = KEY.at(j, 3*i+2) ^ tKEY.at(j, 3*location[i*bucket_size+k]+2);
                 }
             }
-            memcpy(r+3*i, tr+3*location[i*bucket_size], 3);
+            memcpy(&r[3*i], &tr[3*location[i*bucket_size]], 3);
             for(int k = 1; k < bucket_size; ++k) {
                 r[3*i] = r[3*i] != tr[3*location[i*bucket_size+k]];
                 r[3*i+2] = r[3*i+2] != tr[3*location[i*bucket_size+k]+2];
@@ -295,8 +286,8 @@ class FpreMP { public:
             for(int j = 1; j <= nP; ++j)if (j!= party) {
                 for(int k = 1; k < bucket_size; ++k)
                     if(d[1][(bucket_size-1)*i+k-1]) {
-                        MAC[j][3*i+2] = MAC[j][3*i+2] ^ tMAC[j][3*location[i*bucket_size+k]];
-                        KEY[j][3*i+2] = KEY[j][3*i+2] ^ tKEY[j][3*location[i*bucket_size+k]];
+                        MAC.at(j, 3*i+2) = MAC.at(j, 3*i+2) ^ tMAC.at(j, 3*location[i*bucket_size+k]);
+                        KEY.at(j, 3*i+2) = KEY.at(j, 3*i+2) ^ tKEY.at(j, 3*location[i*bucket_size+k]);
                     }
             }
             for(int k = 1; k < bucket_size; ++k)
@@ -311,23 +302,6 @@ class FpreMP { public:
 #endif
 
 //        ret.get();
-        delete[] tr;
-        delete[] phi;
-        delete[] e;
-        delete[] dgst;
-        delete[] tmp;
-        delete[] location;
-        delete[] xs;
-        for(int i = 1; i <= nP; ++i) {
-            delete[] tMAC[i];
-            delete[] tKEY[i];
-            delete[] tMACphi[i];
-            delete[] tKEYphi[i];
-            delete[] X[i];
-            delete[] s[i];
-            delete[] d[i];
-        }
-        delete[] s[0];
     }
 
     //TODO: change to justGarble
@@ -368,13 +342,13 @@ class FpreMP { public:
         return (tmp&0x1) != (res&0x1);
     }
 
-    void check_MAC_phi(block * MAC[nP+1], block * KEY[nP+1], block * phi, bool * r, int length) {
+    void check_MAC_phi(const NVec<block>& MAC, const NVec<block>& KEY, block * phi, bool * r, int length) {
         block * tmp = new block[length];
         block *tD = new block[length];
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j) {
             if(party == i) {
                 io->send_data(j, phi, length*sizeof(block));
-                io->send_data(j, KEY[j], sizeof(block)*length);
+                io->send_data(j, &KEY.at(j, 0), sizeof(block)*length);
                 io->flush(j);
             } else if(party == j) {
                 io->recv_data(i, tD, length*sizeof(block));
@@ -382,7 +356,7 @@ class FpreMP { public:
                 for(int k = 0; k < length; ++k) {
                     if(r[k])tmp[k] = tmp[k] ^ tD[k];
                 }
-                if(!cmpBlock(MAC[i], tmp, length))
+                if(!cmpBlock(&MAC.at(i, 0), tmp, length))
                     error("check_MAC_phi failed!");
             }
         }

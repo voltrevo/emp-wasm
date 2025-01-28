@@ -58,12 +58,12 @@ public:
         authenticated_share_assignment.clear();
     }
 
-    void associate_cmpc(bool *associated_value, block *associated_mac[nP + 1], block *associated_key[nP + 1],  NetIOMP<nP> *associated_io, block associated_Delta) {
+    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key,  NetIOMP<nP> *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
         this->value = associated_value;
         for(int j = 1; j <= nP; j++) {
-            this->mac[j] = associated_mac[j];
-            this->key[j] = associated_key[j];
+            this->mac[j] = &associated_mac.at(j, 0);
+            this->key[j] = &associated_key.at(j, 0);
         }
         this->io = associated_io;
         this->Delta = associated_Delta;
@@ -539,17 +539,17 @@ public:
         authenticated_share_results.clear();
     }
 
-    void associate_cmpc(bool *associated_value, block *associated_mac[nP + 1], block *associated_key[nP + 1], block *associated_eval_labels[nP + 1], block *associated_labels, NetIOMP<nP> *associated_io, block associated_Delta) {
+    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key, NVec<block>& associated_eval_labels, Vec<block>& associated_labels, NetIOMP<nP> *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
         this->value = associated_value;
-        this->labels = associated_labels;
+        this->labels = &associated_labels.at(0);
         for (int j = 1; j <= nP; j++) {
-            this->mac[j] = associated_mac[j];
-            this->key[j] = associated_key[j];
+            this->mac[j] = &associated_mac.at(j, 0);
+            this->key[j] = &associated_key.at(j, 0);
         }
         if (party == ALICE){
             for (int j = 2; j <= nP; j++) {
-                this->eval_labels[j] = associated_eval_labels[j];
+                this->eval_labels[j] = &associated_eval_labels.at(j, 0);
             }
         }
         this->io = associated_io;

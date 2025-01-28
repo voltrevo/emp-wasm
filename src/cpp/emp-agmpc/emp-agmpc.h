@@ -6,5 +6,6 @@
 #include "emp-agmpc/helper.h"
 #include "emp-agmpc/mpc.h"
 #include "emp-agmpc/netmp.h"
-#include "emp-agmpc/nvector.h"
+#include "emp-agmpc/vec.h"
+#include "emp-agmpc/nvec.h"
 #endif// EMP_AGMPC_H

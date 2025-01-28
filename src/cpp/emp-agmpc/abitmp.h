@@ -4,6 +4,7 @@
 #include <emp-ot/emp-ot.h>
 #include "netmp.h"
 #include "helper.h"
+#include "nvec.h"
 
 template<int nP>
 class ABitMP { public:
@@ -64,21 +65,21 @@ class ABitMP { public:
             delete abit2[i];
         }
     }
-    void compute(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
+    void compute(NVec<block>& MAC, NVec<block>& KEY, bool* data, int length) {
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
             if (party < party2) {
-                abit2[party2]->recv_cot(MAC[party2], data, length);
+                abit2[party2]->recv_cot(&MAC.at(party2, 0), data, length);
                 io->flush(party2);
 
-                abit1[party2]->send_cot(KEY[party2], length);
+                abit1[party2]->send_cot(&KEY.at(party2, 0), length);
                 io->flush(party2);
             } else {
-                abit1[party2]->send_cot(KEY[party2], length);
+                abit1[party2]->send_cot(&KEY.at(party2, 0), length);
                 io->flush(party2);
 
-                abit2[party2]->recv_cot(MAC[party2], data, length);
+                abit2[party2]->recv_cot(&MAC.at(party2, 0), data, length);
                 io->flush(party2);
             }
         }
@@ -87,12 +88,12 @@ class ABitMP { public:
 #endif
     }
 
-    void check(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
+    void check(const NVec<block>& MAC, const NVec<block>& KEY, bool* data, int length) {
         check1(MAC, KEY, data, length);
         check2(MAC, KEY, data, length);
     }
 
-    void check1(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
+    void check1(const NVec<block>& MAC, const NVec<block>& KEY, bool* data, int length) {
         block seed = sampleRandom(io, &prg, party);
         PRG prg2(&seed);
         uint8_t * tmp;
@@ -141,13 +142,13 @@ class ABitMP { public:
             for(int tt = 0; tt < length/SIZE; tt++) {
                 int start = SIZE*tt;
                 for(int i = SIZE*tt; i < SIZE*(tt+1) and i < length; i+=chk) {
-                  tMAC[(i-start)/chk][1] = MAC[k][i];
-                  tMAC[(i-start)/chk][2] = MAC[k][i+1];
-                  tMAC[(i-start)/chk][3] = MAC[k][i] ^ MAC[k][i+1];
+                  tMAC[(i-start)/chk][1] = MAC.at(k, i);
+                  tMAC[(i-start)/chk][2] = MAC.at(k, i+1);
+                  tMAC[(i-start)/chk][3] = MAC.at(k, i) ^ MAC.at(k, i+1);
 
-                  tKEY[(i-start)/chk][1] = KEY[k][i];
-                  tKEY[(i-start)/chk][2] = KEY[k][i+1];
-                  tKEY[(i-start)/chk][3] = KEY[k][i] ^ KEY[k][i+1];
+                  tKEY[(i-start)/chk][1] = KEY.at(k, i);
+                  tKEY[(i-start)/chk][2] = KEY.at(k, i+1);
+                  tKEY[(i-start)/chk][3] = KEY.at(k, i) ^ KEY.at(k, i+1);
                   for(int j = 0; j < ssp; ++j) {
                              Ms[k][j] = Ms[k][j] ^ tMAC[(i-start)/chk][*tmpptr];
                              Ks[k][j] = Ks[k][j] ^ tKEY[(i-start)/chk][*tmpptr];
@@ -187,7 +188,7 @@ class ABitMP { public:
         }
     }
 
-    void check2(block * MAC[nP+1], block * KEY[nP+1], bool* data, int length) {
+    void check2(const NVec<block>& MAC, const NVec<block> KEY, bool* data, int length) {
         //last 2*ssp are garbage already.
         block * Ks[2], *Ms[nP+1][nP+1];
         block * KK[nP+1];
@@ -208,7 +209,7 @@ class ABitMP { public:
         for(int i = 0; i < ssp; ++i) {
             Ks[0][i] = zero_block;
             for(int j = 1; j <= nP; ++j) if(j != party)
-                Ks[0][i] = Ks[0][i] ^ KEY[j][length-3*ssp+i];
+                Ks[0][i] = Ks[0][i] ^ KEY.at(j, length-3*ssp+i);
 
             Ks[1][i] = Ks[0][i] ^ Delta;
             Hash::hash_once(dgst0[party*ssp+i], &Ks[0][i], sizeof(block));
@@ -217,7 +218,7 @@ class ABitMP { public:
         Hash h;
         h.put(data+length-3*ssp, ssp);
         for(int j = 1; j <= nP; ++j) if(j != party) {
-            h.put(&MAC[j][length-3*ssp], ssp*sizeof(block));
+            h.put(&MAC.at(j, length-3*ssp), ssp*sizeof(block));
         }
         h.digest(dgst[party]);
 
@@ -233,14 +234,14 @@ class ABitMP { public:
 
         vector<bool> res2;
         for(int k = 1; k <= nP; ++k) if(k!= party)
-            memcpy(Ms[party][k], MAC[k]+length-3*ssp, sizeof(block)*ssp);
+            memcpy(Ms[party][k], &MAC.at(k, length-3*ssp), sizeof(block)*ssp);
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
             io->send_data(party2, data + length - 3*ssp, ssp);
             for(int k = 1; k <= nP; ++k) if(k != party)
-                io->send_data(party2, MAC[k] + length - 3*ssp, sizeof(block)*ssp);
+                io->send_data(party2, &MAC.at(k, length - 3*ssp), sizeof(block)*ssp);
             res2.push_back(false);
 
             Hash h;

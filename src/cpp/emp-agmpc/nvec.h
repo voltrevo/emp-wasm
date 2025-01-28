@@ -1,23 +1,24 @@
 #ifndef NVECTOR_H
 #define NVECTOR_H
 
-#include <vector>
 #include <stdexcept>
 #include <initializer_list>
 #include <numeric>
 #include <cstddef>
 #include <utility>
 
+#include "vec.h"
+
 // N-dimensional vector class
 template <typename T>
-class NVector {
+class NVec {
 public:
     // Default constructor
-    NVector() : total_size(0) {}
+    NVec() : total_size(0) {}
 
     // Constructor taking sizes of each dimension
     template <typename... Dims>
-    explicit NVector(Dims... dims) {
+    explicit NVec(Dims... dims) {
         resize(dims...);
     }
 
@@ -61,7 +62,7 @@ public:
 private:
     std::vector<size_t> dimensions; // Sizes of each dimension
     size_t total_size;              // Total size of the data
-    std::vector<T> data;            // Linear storage for the elements
+    Vec<T> data;                    // Linear storage for the elements
 
     // Compute the flat index from multi-dimensional indices
     size_t compute_flat_index(const std::vector<size_t>& indices) const {
