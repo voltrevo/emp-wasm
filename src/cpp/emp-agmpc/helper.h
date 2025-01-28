@@ -82,8 +82,7 @@ void recv_partial_block(IOChannel& io, block * data, int length) {
     }
 }
 
-template<int nP>
-block sampleRandom(NetIOMP<nP> * io, PRG * prg, int party) {
+block sampleRandom(int nP, NetIOMP * io, PRG * prg, int party) {
     vector<bool> res2;
     char (*dgst)[Hash::DIGEST_SIZE] = new char[nP+1][Hash::DIGEST_SIZE];
     block *S = new block[nP+1];
@@ -118,7 +117,7 @@ block sampleRandom(NetIOMP<nP> * io, PRG * prg, int party) {
 }
 
 template<int nP>
-void check_MAC(NetIOMP<nP> * io, const NVec<block>& MAC, const NVec<block>& KEY, bool * r, block Delta, int length, int party) {
+void check_MAC(NetIOMP * io, const NVec<block>& MAC, const NVec<block>& KEY, bool * r, block Delta, int length, int party) {
     block * tmp = new block[length];
     block tD;
     for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j) {
@@ -142,7 +141,7 @@ void check_MAC(NetIOMP<nP> * io, const NVec<block>& MAC, const NVec<block>& KEY,
 }
 
 template<int nP>
-void check_correctness(NetIOMP<nP>* io, bool * r, int length, int party) {
+void check_correctness(NetIOMP* io, bool * r, int length, int party) {
     if (party == 1) {
         bool * tmp1 = new bool[length*3];
         bool * tmp2 = new bool[length*3];

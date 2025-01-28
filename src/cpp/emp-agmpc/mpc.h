@@ -35,7 +35,7 @@ class CMPC { public:
 
     Vec<block> labels; // dim: wires
     BristolFormat * cf;
-    NetIOMP<nP_deprecated> * io;
+    NetIOMP * io;
     int num_ands = 0, num_in;
     int party, total_pre, ssp;
     block Delta;
@@ -49,7 +49,7 @@ class CMPC { public:
 
     CMPC(
         int nP,
-        NetIOMP<nP_deprecated> * io[2],
+        NetIOMP * io[2],
         int party,
         BristolFormat * cf,
         bool * _delta = nullptr,

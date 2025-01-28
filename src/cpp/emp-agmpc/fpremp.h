@@ -13,7 +13,7 @@ template<int nP_deprecated>
 class FpreMP { public:
     int nP;
     int party;
-    NetIOMP<nP_deprecated> * io;
+    NetIOMP * io;
     ABitMP<nP_deprecated>* abit;
     block Delta;
     CRH * prps;
@@ -21,7 +21,7 @@ class FpreMP { public:
     PRG * prgs;
     PRG prg;
     int ssp;
-    FpreMP(int nP, NetIOMP<nP_deprecated> * io[2], int party, bool * _delta = nullptr, int ssp = 40) {
+    FpreMP(int nP, NetIOMP * io[2], int party, bool * _delta = nullptr, int ssp = 40) {
         this->nP = nP;
         this->party = party;
         this->io = io[0];
@@ -199,7 +199,7 @@ class FpreMP { public:
         check_zero(&tKEYphi.at(party, 0), length*bucket_size);
 #endif
 
-        block prg_key = sampleRandom(io, &prg, party);
+        block prg_key = sampleRandom(nP, io, &prg, party);
         PRG prgf(&prg_key);
         char (*dgst)[Hash::DIGEST_SIZE] = new char[nP+1][Hash::DIGEST_SIZE];
         bool * tmp = new bool[length*bucket_size];
@@ -233,7 +233,7 @@ class FpreMP { public:
         if(!cmpBlock(&X.at(1, 0), &X.at(2, 0), ssp)) error("AND check");
 
         //land -> and
-        block S = sampleRandom<nP_deprecated>(io, &prg, party);
+        block S = sampleRandom(nP, io, &prg, party);
 
         int * ind = new int[length*bucket_size];
         int *location = new int[length*bucket_size];

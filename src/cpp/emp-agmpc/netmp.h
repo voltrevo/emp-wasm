@@ -1,52 +1,59 @@
 #ifndef NETIOMP_H
 #define NETIOMP_H
+#include <optional>
 #include <unistd.h>
 #include <emp-tool/emp-tool.h>
 #include <emp-tool/io/net_io.h>
 #include "cmpc_config.h"
+#include "vec.h"
 using namespace emp;
 
-template<int nP>
 class NetIOMP { public:
-    IOChannel*ios[nP+1];
-    IOChannel*ios2[nP+1];
+    int nP;
+    Vec<std::optional<IOChannel>> ios;
+    Vec<std::optional<IOChannel>> ios2;
     int party;
-    bool sent[nP+1];
-    NetIOMP(int party, int port) {
-        this->party = party;
-        memset(sent, false, nP+1);
+    Vec<bool> sent;
+    NetIOMP(int nP, int party, int port)
+    :
+        nP(nP),
+        ios(nP+1),
+        ios2(nP+1),
+        party(party),
+        sent(nP+1)
+    {
         for(int i = 1; i <= nP; ++i)for(int j = 1; j <= nP; ++j)if(i < j){
             if(i == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                ios[j] = new IOChannel(std::make_shared<NetIO>(IP[j], port+2*(i*nP+j)));
+                ios[j].emplace(std::make_shared<NetIO>(IP[j], port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                ios[j] = new IOChannel(std::make_shared<NetIO>(IP[j], port+2*(i)));
+                ios[j].emplace(std::make_shared<NetIO>(IP[j], port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
                 usleep(1000);
-                ios2[j] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)+1));
+                ios2[j].emplace(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                ios2[j] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(j)+1));
+                ios2[j].emplace(std::make_shared<NetIO>(nullptr, port+2*(j)+1));
 #endif
             } else if(j == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                ios[i] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)));
+                ios[i].emplace(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                ios[i] = new IOChannel(std::make_shared<NetIO>(nullptr, port+2*(i)));
+                ios[i].emplace(std::make_shared<NetIO>(nullptr, port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
                 usleep(1000);
-                ios2[i] = new IOChannel(std::make_shared<NetIO>(IP[i], port+2*(i*nP+j)+1));
+                ios2[i].emplace(std::make_shared<NetIO>(IP[i], port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                ios2[i] = new IOChannel(std::make_shared<NetIO>(IP[i], port+2*(j)+1));
+                ios2[i].emplace(std::make_shared<NetIO>(IP[i], port+2*(j)+1));
 #endif
             }
         }
@@ -60,13 +67,6 @@ class NetIOMP { public:
         return res;
     }
 
-    ~NetIOMP() {
-        for(int i = 1; i <= nP; ++i)
-            if(i != party) {
-                delete ios[i];
-                delete ios2[i];
-            }
-    }
     void send_data(int dst, const void * data, size_t len) {
         if(dst != 0 and dst!= party) {
             if(party < dst)
@@ -107,16 +107,16 @@ class NetIOMP { public:
                 ios2[idx]->flush();
         }
     }
-    void sync() {
-        for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
-            if(i == party) {
-                ios[j]->sync();
-                ios2[j]->sync();
-            } else if(j == party) {
-                ios[i]->sync();
-                ios2[i]->sync();
-            }
-        }
-    }
+    // void sync() {
+    //     for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
+    //         if(i == party) {
+    //             ios[j]->sync();
+    //             ios2[j]->sync();
+    //         } else if(j == party) {
+    //             ios[i]->sync();
+    //             ios2[i]->sync();
+    //         }
+    //     }
+    // }
 };
 #endif //NETIOMP_H

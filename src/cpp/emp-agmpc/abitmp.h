@@ -15,14 +15,14 @@ class ABitMP { public:
     int nP;
     Vec<std::optional<IKNP>> abit1;
     Vec<std::optional<IKNP>> abit2;
-    NetIOMP<nP_deprecated> *io;
+    NetIOMP *io;
     int party;
     PRG prg;
     block Delta;
     Hash hash;
     int ssp;
     block * pretable;
-    ABitMP(int nP, NetIOMP<nP_deprecated>* io, int party, bool * _tmp = nullptr, int ssp = 40)
+    ABitMP(int nP, NetIOMP* io, int party, bool * _tmp = nullptr, int ssp = 40)
     :
         nP(nP),
         abit1(nP+1),
@@ -99,7 +99,7 @@ class ABitMP { public:
     }
 
     void check1(const NVec<block>& MAC, const NVec<block>& KEY, bool* data, int length) {
-        block seed = sampleRandom(io, &prg, party);
+        block seed = sampleRandom(nP, io, &prg, party);
         PRG prg2(&seed);
         uint8_t * tmp;
         block * Ms[nP+1];

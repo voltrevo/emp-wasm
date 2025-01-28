@@ -11,9 +11,9 @@ int main(int argc, char** argv) {
     parse_party_and_port(argv, &party, &port);
 
     const static int nP = 4;
-    NetIOMP<nP> io(party, port);
-    NetIOMP<nP> io2(party, port+2*(nP+1)*(nP+1)+1);
-    NetIOMP<nP> *ios[2] = {&io, &io2};
+    NetIOMP io(nP, party, port);
+    NetIOMP io2(nP, party, port+2*(nP+1)*(nP+1)+1);
+    NetIOMP *ios[2] = {&io, &io2};
     BristolFormat cf(circuit_file_location.c_str());
 
     CMPC<nP>* mpc = new CMPC<nP>(nP, ios, party, &cf);

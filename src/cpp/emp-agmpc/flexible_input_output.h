@@ -29,7 +29,7 @@ public:
     bool *value;
     block *key[nP + 1];
     block *mac[nP + 1];
-    NetIOMP<nP> * io;
+    NetIOMP* io;
     block Delta;
 
     vector<int> party_assignment;
@@ -58,7 +58,7 @@ public:
         authenticated_share_assignment.clear();
     }
 
-    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key,  NetIOMP<nP> *associated_io, block associated_Delta) {
+    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key,  NetIOMP *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
         this->value = associated_value;
         for(int j = 1; j <= nP; j++) {
@@ -510,7 +510,7 @@ public:
     block *key[nP + 1];
     block *mac[nP + 1];
     block *eval_labels[nP + 1];
-    NetIOMP<nP> * io;
+    NetIOMP * io;
     block Delta;
     block *labels;
 
@@ -539,7 +539,7 @@ public:
         authenticated_share_results.clear();
     }
 
-    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key, NVec<block>& associated_eval_labels, Vec<block>& associated_labels, NetIOMP<nP> *associated_io, block associated_Delta) {
+    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key, NVec<block>& associated_eval_labels, Vec<block>& associated_labels, NetIOMP *associated_io, block associated_Delta) {
         this->cmpc_associated = true;
         this->value = associated_value;
         this->labels = &associated_labels.at(0);
