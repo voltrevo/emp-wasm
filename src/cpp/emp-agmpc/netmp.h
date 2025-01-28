@@ -94,10 +94,13 @@ class NetIOMP { public:
         else
             ios2[src]->recv_data(data, len);
     }
-    IOChannel& get(size_t idx, bool b = false){
-        if (b)
-            return *ios[idx];
-        else return *ios2[idx];
+    IOChannel& get(int party2, bool send) {
+        assert(party2 != 0);
+        assert(party2 != party);
+
+        bool firstBucket = send == (party < party2);
+
+        return firstBucket ? *ios[party2] : *ios2[party2];
     }
 
     void flush(int idx = 0) {
