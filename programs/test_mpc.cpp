@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
     }
 
     mpc->online(&input, &output);
-    uint64_t band2 = io.count();
+    uint64_t band2 = count_multi_io(io);
     cout <<"bandwidth\t"<<party<<"\t"<<band2<<endl;
     cout <<"ONLINE:\t"<<party<<"\n";
 

@@ -160,6 +160,19 @@ void check_correctness(int nP, NetIOMP* io, bool * r, int length, int party) {
     }
 }
 
+uint64_t count_multi_io(IMultiIO& mio) {
+    uint64_t res = 0;
+
+    for (int i = 1; i <= mio.size(); ++i) {
+        if (i != mio.party()) {
+            res += *mio.send_channel(i).counter;
+            res += *mio.recv_channel(i).counter;
+        }
+    }
+
+    return res;
+}
+
 inline const char* hex_char_to_bin(char c) {
     switch(toupper(c)) {
         case '0': return "0000";
