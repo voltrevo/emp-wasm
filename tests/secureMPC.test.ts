@@ -1,8 +1,9 @@
 import { expect } from 'chai';
-import { BufferQueue, secure2PC } from "../src/ts"
+import { BufferQueue, secureMPC } from "../src/ts"
 
-describe('Secure 2PC', () => {
-  it('3 + 5 == 8', async () => {
+describe('Secure MPC', () => {
+  it('3 + 5 == 8', async function () {
+    this.timeout(60_000);
     expect(await internalDemo(3, 5)).to.deep.equal({ alice: 8, bob: 8 });
   });
 });
@@ -11,26 +12,42 @@ async function internalDemo(
   aliceInput: number,
   bobInput: number
 ): Promise<{ alice: number, bob: number }> {
-  const aliceBq = new BufferQueue();
-  const bobBq = new BufferQueue();
+  const aliceBq = { a: new BufferQueue(), b: new BufferQueue() };
+  const bobBq = { a: new BufferQueue(), b: new BufferQueue() };
 
   const [aliceBits, bobBits] = await Promise.all([
-    secure2PC(
-      'alice',
+    secureMPC(
+      0,
+      2,
       add32BitCircuit,
       numberTo32Bits(aliceInput),
+      0,
       {
-        send: data => bobBq.push(data),
-        recv: len => aliceBq.pop(len),
+        send: (party2, channel, data) => {
+          expect(party2).to.equal(1);
+          bobBq[channel].push(data);
+        },
+        recv: (party2, channel, len) => {
+          expect(party2).to.equal(1);
+          return aliceBq[channel].pop(len);
+        },
       },
     ),
-    secure2PC(
-      'bob',
+    secureMPC(
+      1,
+      2,
       add32BitCircuit,
       numberTo32Bits(bobInput),
+      32,
       {
-        send: data => aliceBq.push(data),
-        recv: len => bobBq.pop(len),
+        send: (party2, channel, data) => {
+          expect(party2).to.equal(0);
+          aliceBq[channel].push(data);
+        },
+        recv: (party2, channel, len) => {
+          expect(party2).to.equal(0);
+          return bobBq[channel].pop(len);
+        },
       },
     ),
   ]);

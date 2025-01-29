@@ -1,11 +1,11 @@
 import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
 import workerSrc from "./workerSrc.js";
-import nodeSecure2PC from "./nodeSecure2PC.js";
+import nodeSecure2PC from "./nodeSecureMPC.js";
 
-export type Secure2PC = typeof secure2PC;
+export type SecureMPC = typeof secureMPC;
 
-export default function secure2PC(
+export default function secureMPC(
   party: number,
   size: number,
   circuit: string,

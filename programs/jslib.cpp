@@ -18,7 +18,7 @@ EM_JS(void, send_js, (int party2, char channel_label, const void* data, size_t l
     // Copy data from WebAssembly memory to a JavaScript Uint8Array
     const dataArray = HEAPU8.slice(data, data + len);
 
-    Module.emp.io.send(party2 - 1, channel_label, dataArray);
+    Module.emp.io.send(party2 - 1, String.fromCharCode(channel_label), dataArray);
 });
 
 // Implement recv_js function to receive data from JavaScript to C++
@@ -29,7 +29,7 @@ EM_ASYNC_JS(void, recv_js, (int party2, char channel_label, void* data, size_t l
     }
 
     // Wait for data from JavaScript
-    const dataArray = await Module.emp.io.recv(party2 - 1, channel_label, arguments[1]);
+    const dataArray = await Module.emp.io.recv(party2 - 1, String.fromCharCode(channel_label), len);
 
     // Copy data from JavaScript Uint8Array to WebAssembly memory
     HEAPU8.set(dataArray, data);
@@ -70,7 +70,7 @@ public:
     std::vector<emp::IOChannel> b_channels;
 
     MultiIOJS(int party, int nP) : mParty(party), nP(nP) {
-        for (int i = 1; i <= nP; i++) {
+        for (int i = 0; i <= nP; i++) {
             a_channels.emplace_back(std::make_shared<RawIOJS>(i, 'a'));
             b_channels.emplace_back(std::make_shared<RawIOJS>(i, 'b'));
         }
@@ -221,19 +221,27 @@ extern "C" {
 }
 
 void run_impl(int party, int nP) {
+    std::cout << "x0" << std::endl;
     std::shared_ptr<IMultiIO> io = std::make_shared<MultiIOJS>(party, nP);
+
+    std::cout << "x0.5" << std::endl;
     auto circuit = get_circuit();
+    std::cout << "x0.7" << std::endl;
 
     auto mpc = CMPC(io, &circuit);
+    std::cout << "x1" << std::endl;
 
     mpc.function_independent();
+    std::cout << "x2" << std::endl;
     mpc.function_dependent();
+    std::cout << "x3" << std::endl;
 
     std::vector<bool> input_bits = get_input_bits();
     int input_bits_start = get_input_bits_start();
 
     FlexIn input(nP, circuit.n1 + circuit.n2, party);
 
+    // TODO: Assign party for all input bits
     for (size_t i = 0; i < input_bits.size(); i++) {
         size_t x = i + input_bits_start;
         input.assign_party(x, party);

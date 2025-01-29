@@ -25,7 +25,7 @@ declare const createModule: () => Promise<Module>
  * @param io - Input/output channels for communication between the two parties.
  * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
  */
-async function secure2PC(
+async function secureMPC(
   party: number,
   size: number,
   circuit: string,
@@ -36,7 +36,7 @@ async function secure2PC(
   const module = await createModule();
 
   if (running) {
-    throw new Error('Can only run one secure2PC at a time');
+    throw new Error('Can only run one secureMPC at a time');
   }
 
   running = true;
@@ -104,7 +104,7 @@ onmessage = async (event) => {
     };
 
     try {
-      const result = await secure2PC(party, size, circuit, input, inputBitsStart, io);
+      const result = await secureMPC(party, size, circuit, input, inputBitsStart, io);
       postMessage({ type: 'result', result });
     } catch (error) {
       postMessage({ type: 'error', error: (error as Error).message });
