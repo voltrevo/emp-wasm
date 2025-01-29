@@ -34,7 +34,7 @@ class CMPC { public:
 
     Vec<block> labels; // dim: wires
     BristolFormat * cf;
-    NetIOMP * io;
+    std::shared_ptr<IMultiIO> io;
     int num_ands = 0, num_in;
     int party, total_pre, ssp;
     block Delta;
@@ -47,16 +47,15 @@ class CMPC { public:
     PRP prp;
 
     CMPC(
-        int nP,
-        NetIOMP* io,
-        int party,
+        std::shared_ptr<IMultiIO>& io,
         BristolFormat * cf,
         bool * _delta = nullptr,
         int ssp = 40
-    ) {
-        this->nP = nP;
-        this->party = party;
-        this->io = io;
+    ):
+        io(io),
+        nP(io->size()),
+        party(io->party())
+    {
         this->cf = cf;
         this->ssp = ssp;
 
@@ -66,7 +65,7 @@ class CMPC { public:
         }
         num_in = cf->n1+cf->n2;
         total_pre = num_in + num_ands + 3*ssp;
-        fpre = new FpreMP(nP, io, party, _delta, ssp);
+        fpre = new FpreMP(io, _delta, ssp);
         Delta = fpre->Delta;
 
         if(party == 1) {
@@ -113,8 +112,8 @@ class CMPC { public:
         }
         memcpy(&value[0], &preprocess_value[0], num_in * sizeof(bool));
 #ifdef __debug
-        check_MAC(nP, io, ANDS_mac, ANDS_key, &ANDS_value[0], Delta, num_ands*3, party);
-        check_correctness(nP, io, &ANDS_value[0], num_ands, party);
+        check_MAC(nP, *io, ANDS_mac, ANDS_key, &ANDS_value[0], Delta, num_ands*3, party);
+        check_correctness(nP, *io, &ANDS_value[0], num_ands, party);
 #endif
 //        ret.get();
     }
@@ -156,7 +155,7 @@ class CMPC { public:
         }
 
 #ifdef __debug
-        check_MAC(nP, io, mac, key, &value[0], Delta, cf->num_wire, party);
+        check_MAC(nP, *io, mac, key, &value[0], Delta, cf->num_wire, party);
 #endif
 
         ands = 0;

@@ -14,22 +14,26 @@ class ABitMP { public:
     int nP;
     Vec<std::optional<IKNP>> abit1;
     Vec<std::optional<IKNP>> abit2;
-    NetIOMP *io;
+    std::shared_ptr<IMultiIO> io;
     int party;
     PRG prg;
     block Delta;
     Hash hash;
     int ssp;
     block * pretable;
-    ABitMP(int nP, NetIOMP* io, int party, bool * _tmp = nullptr, int ssp = 40)
-    :
-        nP(nP),
+
+    ABitMP(
+        std::shared_ptr<IMultiIO>& io,
+        bool * _tmp = nullptr,
+        int ssp = 40
+    ):
+        io(io),
+        nP(io->size()),
         abit1(nP+1),
         abit2(nP+1)
     {
         this->ssp = ssp;
-        this->io = io;
-        this->party = party;
+        this->party = io->party();
         bool tmp[128];
         if(_tmp == nullptr) {
             prg.random_bool(tmp, 128);
@@ -76,7 +80,7 @@ class ABitMP { public:
             }
         }
 #ifdef __debug
-        check_MAC(nP, io, MAC, KEY, data, Delta, length, party);
+        check_MAC(nP, *io, MAC, KEY, data, Delta, length, party);
 #endif
     }
 
@@ -86,7 +90,7 @@ class ABitMP { public:
     }
 
     void check1(const NVec<block>& MAC, const NVec<block>& KEY, bool* data, int length) {
-        block seed = sampleRandom(nP, io, &prg, party);
+        block seed = sampleRandom(nP, *io, &prg, party);
         PRG prg2(&seed);
         uint8_t * tmp;
         block * Ms[nP+1];

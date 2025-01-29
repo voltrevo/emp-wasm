@@ -54,7 +54,7 @@ public:
     bool *value;
     NVec<block>* key;
     NVec<block>* mac;
-    NetIOMP* io;
+    IMultiIO* io;
     block Delta;
 
     vector<int> party_assignment;
@@ -81,12 +81,18 @@ public:
         authenticated_share_assignment.clear();
     }
 
-    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key,  NetIOMP *associated_io, block associated_Delta) {
+    void associate_cmpc(
+        bool *associated_value,
+        NVec<block>& associated_mac,
+        NVec<block>& associated_key,
+        std::shared_ptr<IMultiIO>& associated_io,
+        block associated_Delta
+    ) {
         this->cmpc_associated = true;
         this->value = associated_value;
         this->mac = &associated_mac;
         this->key = &associated_key;
-        this->io = associated_io;
+        this->io = &*associated_io;
         this->Delta = associated_Delta;
     }
 
@@ -521,7 +527,7 @@ public:
     NVec<block>* key;
     NVec<block>* mac;
     NVec<block>* eval_labels;
-    NetIOMP * io;
+    IMultiIO* io;
     block Delta;
     block *labels;
 
@@ -550,7 +556,15 @@ public:
         authenticated_share_results.clear();
     }
 
-    void associate_cmpc(bool *associated_value, NVec<block>& associated_mac, NVec<block>& associated_key, NVec<block>& associated_eval_labels, Vec<block>& associated_labels, NetIOMP *associated_io, block associated_Delta) {
+    void associate_cmpc(
+        bool *associated_value,
+        NVec<block>& associated_mac,
+        NVec<block>& associated_key,
+        NVec<block>& associated_eval_labels,
+        Vec<block>& associated_labels,
+        std::shared_ptr<IMultiIO>& associated_io,
+        block associated_Delta
+    ) {
         this->cmpc_associated = true;
         this->value = associated_value;
         this->labels = &associated_labels.at(0);
@@ -559,7 +573,7 @@ public:
         if (party == ALICE){
             this->eval_labels = &associated_eval_labels;
         }
-        this->io = associated_io;
+        this->io = &*associated_io;
         this->Delta = associated_Delta;
     }
 

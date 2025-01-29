@@ -11,10 +11,10 @@ int main(int argc, char** argv) {
     parse_party_and_port(argv, &party, &port);
 
     const static int nP = 4;
-    NetIOMP io(nP, party, port);
+    std::shared_ptr<IMultiIO> io = std::make_shared<NetIOMP>(nP, party, port);
     BristolFormat cf(circuit_file_location.c_str());
 
-    CMPC* mpc = new CMPC(nP, &io, party, &cf);
+    CMPC* mpc = new CMPC(io, &cf);
     cout <<"Setup:\t"<<party<<"\n";
 
     mpc->function_independent();
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     }
 
     mpc->online(&input, &output);
-    uint64_t band2 = count_multi_io(io);
+    uint64_t band2 = count_multi_io(*io);
     cout <<"bandwidth\t"<<party<<"\t"<<band2<<endl;
     cout <<"ONLINE:\t"<<party<<"\n";
 

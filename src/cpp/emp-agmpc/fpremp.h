@@ -13,7 +13,7 @@ using namespace emp;
 class FpreMP { public:
     int nP;
     int party;
-    NetIOMP * io;
+    std::shared_ptr<IMultiIO> io;
     ABitMP* abit;
     block Delta;
     CRH * prps;
@@ -21,12 +21,18 @@ class FpreMP { public:
     PRG * prgs;
     PRG prg;
     int ssp;
-    FpreMP(int nP, NetIOMP* io, int party, bool * _delta = nullptr, int ssp = 40) {
-        this->nP = nP;
-        this->party = party;
-        this->io = io;
+
+    FpreMP(
+        std::shared_ptr<IMultiIO>& io,
+        bool * _delta = nullptr,
+        int ssp = 40
+    ):
+        io(io),
+        nP(io->size()),
+        party(io->party())
+    {
         this ->ssp = ssp;
-        abit = new ABitMP(nP, io, party, _delta, ssp);
+        abit = new ABitMP(io, _delta, ssp);
         Delta = abit->Delta;
         prps = new CRH[nP+1];
         prps2 = new CRH[nP+1];
@@ -91,7 +97,7 @@ class FpreMP { public:
         }
 
 #ifdef __debug
-        check_correctness(nP, io, &tr[0], length*bucket_size, party);
+        check_correctness(nP, *io, &tr[0], length*bucket_size, party);
 #endif
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
@@ -107,7 +113,7 @@ class FpreMP { public:
             delete[] tmp;
         }
 #ifdef __debug
-        check_MAC(nP, io, tMAC, tKEY, &tr[0], Delta, length*bucket_size*3, party);
+        check_MAC(nP, *io, tMAC, tKEY, &tr[0], Delta, length*bucket_size*3, party);
 #endif
         abit->check(tMAC, tKEY, &tr[0], length*bucket_size*3 + 3*ssp);
         //check compute phi
@@ -195,7 +201,7 @@ class FpreMP { public:
         check_zero(&tKEYphi.at(party, 0), length*bucket_size);
 #endif
 
-        block prg_key = sampleRandom(nP, io, &prg, party);
+        block prg_key = sampleRandom(nP, *io, &prg, party);
         PRG prgf(&prg_key);
         char (*dgst)[Hash::DIGEST_SIZE] = new char[nP+1][Hash::DIGEST_SIZE];
         bool * tmp = new bool[length*bucket_size];
@@ -229,7 +235,7 @@ class FpreMP { public:
         if(!cmpBlock(&X.at(1, 0), &X.at(2, 0), ssp)) error("AND check");
 
         //land -> and
-        block S = sampleRandom(nP, io, &prg, party);
+        block S = sampleRandom(nP, *io, &prg, party);
 
         int * ind = new int[length*bucket_size];
         int *location = new int[length*bucket_size];
@@ -294,8 +300,8 @@ class FpreMP { public:
         }
 
 #ifdef __debug
-        check_MAC(nP, io, MAC, KEY, r, Delta, length*3, party);
-        check_correctness(nP, io, r, length, party);
+        check_MAC(nP, *io, MAC, KEY, r, Delta, length*3, party);
+        check_correctness(nP, *io, r, length, party);
 #endif
 
 //        ret.get();
