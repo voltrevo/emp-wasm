@@ -66,24 +66,6 @@ class NetIOMP { public:
         return res;
     }
 
-    void send_data(int dst, const void * data, size_t len) {
-        assert(dst != 0);
-        assert(dst != party);
-
-        if(party < dst)
-            ios[dst]->send_data(data, len);
-        else
-            ios2[dst]->send_data(data, len);
-    }
-    void recv_data(int src, void * data, size_t len) {
-        assert(src != 0);
-        assert(src != party);
-
-        if(src < party)
-            ios[src]->recv_data(data, len);
-        else
-            ios2[src]->recv_data(data, len);
-    }
     IOChannel& send_channel(int party2) {
         assert(party2 != 0);
         assert(party2 != party);
