@@ -39,11 +39,11 @@ class ABitMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
             if(i == party) {
-                abit1[j].emplace(io->get(j, false));
-                abit2[j].emplace(io->get(j, true));
+                abit1[j].emplace(io->recv_channel(j));
+                abit2[j].emplace(io->send_channel(j));
             } else if (j == party) {
-                abit2[i].emplace(io->get(i, true));
-                abit1[i].emplace(io->get(i, false));
+                abit2[i].emplace(io->send_channel(i));
+                abit1[i].emplace(io->recv_channel(i));
             }
         }
 
