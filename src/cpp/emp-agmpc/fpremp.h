@@ -21,12 +21,12 @@ class FpreMP { public:
     PRG * prgs;
     PRG prg;
     int ssp;
-    FpreMP(int nP, NetIOMP * io[2], int party, bool * _delta = nullptr, int ssp = 40) {
+    FpreMP(int nP, NetIOMP* io, int party, bool * _delta = nullptr, int ssp = 40) {
         this->nP = nP;
         this->party = party;
-        this->io = io[0];
+        this->io = io;
         this ->ssp = ssp;
-        abit = new ABitMP(nP, io[1], party, _delta, ssp);
+        abit = new ABitMP(nP, io, party, _delta, ssp);
         Delta = abit->Delta;
         prps = new CRH[nP+1];
         prps2 = new CRH[nP+1];

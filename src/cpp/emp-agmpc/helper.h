@@ -160,13 +160,13 @@ void check_correctness(int nP, NetIOMP* io, bool * r, int length, int party) {
     }
 }
 
-uint64_t count_multi_io(IMultiIO& mio) {
+uint64_t count_multi_io(IMultiIO& io) {
     uint64_t res = 0;
 
-    for (int i = 1; i <= mio.size(); ++i) {
-        if (i != mio.party()) {
-            res += *mio.send_channel(i).counter;
-            res += *mio.recv_channel(i).counter;
+    for (int i = 1; i <= io.size(); ++i) {
+        if (i != io.party()) {
+            res += *io.send_channel(i).counter;
+            res += *io.recv_channel(i).counter;
         }
     }
 

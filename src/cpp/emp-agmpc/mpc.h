@@ -48,7 +48,7 @@ class CMPC { public:
 
     CMPC(
         int nP,
-        NetIOMP * io[2],
+        NetIOMP* io,
         int party,
         BristolFormat * cf,
         bool * _delta = nullptr,
@@ -56,7 +56,7 @@ class CMPC { public:
     ) {
         this->nP = nP;
         this->party = party;
-        this->io = io[0];
+        this->io = io;
         this->cf = cf;
         this->ssp = ssp;
 

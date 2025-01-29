@@ -12,11 +12,9 @@ int main(int argc, char** argv) {
 
     const static int nP = 4;
     NetIOMP io(nP, party, port);
-    NetIOMP io2(nP, party, port+2*(nP+1)*(nP+1)+1);
-    NetIOMP *ios[2] = {&io, &io2};
     BristolFormat cf(circuit_file_location.c_str());
 
-    CMPC* mpc = new CMPC(nP, ios, party, &cf);
+    CMPC* mpc = new CMPC(nP, &io, party, &cf);
     cout <<"Setup:\t"<<party<<"\n";
 
     mpc->function_independent();
