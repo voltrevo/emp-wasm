@@ -74,14 +74,14 @@ class FpreMP { public:
                 prgs[j].random_bool(&s.at(j, 0), length*bucket_size);
                 for(int k = 0; k < length*bucket_size; ++k) {
                     uint8_t data = garble(&tKEY.at(j, 0), &tr[0], &s.at(j, 0), k, j);
-                    io->send_channel(j).send_data(&data, 1);
+                    get_send_channel(*io, j).send_data(&data, 1);
                     s.at(j, k) = (s.at(j, k) != (tr[3*k] and tr[3*k+1]));
                 }
                 io->flush(j);
             } else if (j == party) {
                 for(int k = 0; k < length*bucket_size; ++k) {
                     uint8_t data = 0;
-                    io->recv_channel(i).recv_data(&data, 1);
+                    get_recv_channel(*io, i).recv_data(&data, 1);
                     bool tmp = evaluate(data, &tMAC.at(i, 0), &tr[0], k, i);
                     s.at(i, k) = (tmp != (tr[3*k] and tr[3*k+1]));
                 }
@@ -103,11 +103,11 @@ class FpreMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            io->send_channel(party2).send_data(&e[0], length*bucket_size);
+            get_send_channel(*io, party2).send_data(&e[0], length*bucket_size);
             io->flush(party2);
 
             bool * tmp = new bool[length*bucket_size];
-            io->recv_channel(party2).recv_data(tmp, length*bucket_size);
+            get_recv_channel(*io, party2).recv_data(tmp, length*bucket_size);
             for(int k = 0; k < length*bucket_size; ++k) {
                 if(tmp[k])
                     tKEY.at(party2, 3*k+2) = tKEY.at(party2, 3*k+2) ^ Delta;
@@ -141,7 +141,7 @@ class FpreMP { public:
                         tKEYphi.at(party2, k) = bH[0];
                         bH[1] = bH[0] ^ bH[1];
                         bH[1] = phi[k] ^ bH[1];
-                        io->send_channel(party2).send_data(&bH[1], sizeof(block));
+                        get_send_channel(*io, party2).send_data(&bH[1], sizeof(block));
                     }
                     io->flush(party2);
                 }
@@ -149,7 +149,7 @@ class FpreMP { public:
                 {
                     block bH;
                     for(int k = 0; k < length*bucket_size; ++k) {
-                        io->recv_channel(party2).recv_data(&bH, sizeof(block));
+                        get_recv_channel(*io, party2).recv_data(&bH, sizeof(block));
                         block hin = sigma(tMAC.at(party2, 3*k)) ^ makeBlock(0, 2*k+tr[3*k]);
                         tMACphi.at(party2, k) = prps2[party2].H(hin);
                         if(tr[3*k])tMACphi.at(party2, k) = tMACphi.at(party2, k) ^ bH;
@@ -159,7 +159,7 @@ class FpreMP { public:
                 {
                     block bH;
                     for(int k = 0; k < length*bucket_size; ++k) {
-                        io->recv_channel(party2).recv_data(&bH, sizeof(block));
+                        get_recv_channel(*io, party2).recv_data(&bH, sizeof(block));
                         block hin = sigma(tMAC.at(party2, 3*k)) ^ makeBlock(0, 2*k+tr[3*k]);
                         tMACphi.at(party2, k) = prps2[party2].H(hin);
                         if(tr[3*k])tMACphi.at(party2, k) = tMACphi.at(party2, k) ^ bH;
@@ -175,7 +175,7 @@ class FpreMP { public:
                         tKEYphi.at(party2, k) = bH[0];
                         bH[1] = bH[0] ^ bH[1];
                         bH[1] = phi[k] ^ bH[1];
-                        io->send_channel(party2).send_data(&bH[1], sizeof(block));
+                        get_send_channel(*io, party2).send_data(&bH[1], sizeof(block));
                     }
                     io->flush(party2);
                 }
@@ -217,16 +217,16 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            io->send_channel(party2).send_data(dgst[party], Hash::DIGEST_SIZE);
-            io->recv_channel(party2).recv_data(dgst[party2], Hash::DIGEST_SIZE);
+            get_send_channel(*io, party2).send_data(dgst[party], Hash::DIGEST_SIZE);
+            get_recv_channel(*io, party2).recv_data(dgst[party2], Hash::DIGEST_SIZE);
         }
 
         vector<bool> res2;
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            io->send_channel(party2).send_data(&X.at(party, 0), sizeof(block)*ssp);
-            io->recv_channel(party2).recv_data(&X.at(party2, 0), sizeof(block)*ssp);
+            get_send_channel(*io, party2).send_data(&X.at(party, 0), sizeof(block)*ssp);
+            get_recv_channel(*io, party2).recv_data(&X.at(party2, 0), sizeof(block)*ssp);
             char tmp[Hash::DIGEST_SIZE];
             Hash::hash_once(tmp, &X.at(party2, 0), sizeof(block)*ssp);
             res2.push_back(strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0);
@@ -282,9 +282,9 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            io->send_channel(party2).send_data(d[party], (bucket_size-1)*length);
+            get_send_channel(*io, party2).send_data(d[party], (bucket_size-1)*length);
             io->flush(party2);
-            io->recv_channel(party2).recv_data(d[party2], (bucket_size-1)*length);
+            get_recv_channel(*io, party2).recv_data(d[party2], (bucket_size-1)*length);
         }
         for(int i = 2; i <= nP; ++i)
             for(int j = 0; j <  (bucket_size-1)*length; ++j)
@@ -355,12 +355,12 @@ class FpreMP { public:
         block *tD = new block[length];
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j) {
             if(party == i) {
-                io->send_channel(j).send_data(phi, length*sizeof(block));
-                io->send_channel(j).send_data(&KEY.at(j, 0), sizeof(block)*length);
+                get_send_channel(*io, j).send_data(phi, length*sizeof(block));
+                get_send_channel(*io, j).send_data(&KEY.at(j, 0), sizeof(block)*length);
                 io->flush(j);
             } else if(party == j) {
-                io->recv_channel(i).recv_data(tD, length*sizeof(block));
-                io->recv_channel(i).recv_data(tmp, sizeof(block)*length);
+                get_recv_channel(*io, i).recv_data(tD, length*sizeof(block));
+                get_recv_channel(*io, i).recv_data(tmp, sizeof(block)*length);
                 for(int k = 0; k < length; ++k) {
                     if(r[k])tmp[k] = tmp[k] ^ tD[k];
                 }
@@ -381,7 +381,7 @@ class FpreMP { public:
             block * tmp2 = new block[l];
             memcpy(tmp1, b, l*sizeof(block));
             for(int i = 2; i <= nP; ++i) {
-                io->recv_channel(i).recv_data(tmp2, l*sizeof(block));
+                get_recv_channel(*io, i).recv_data(tmp2, l*sizeof(block));
                 xorBlocks_arr(tmp1, tmp1, tmp2, l);
             }
             block z = zero_block;
@@ -392,7 +392,7 @@ class FpreMP { public:
             delete[] tmp1;
             delete[] tmp2;
         } else {
-            io->send_channel(1).send_data(b, l*sizeof(block));
+            get_send_channel(*io, 1).send_data(b, l*sizeof(block));
             io->flush(1);
         }
     }

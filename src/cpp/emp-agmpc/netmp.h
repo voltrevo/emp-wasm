@@ -11,8 +11,8 @@ using namespace emp;
 class NetIOMP: public IMultiIO {
 private:
     int nP;
-    Vec<std::optional<IOChannel>> ios;
-    Vec<std::optional<IOChannel>> ios2;
+    Vec<std::optional<IOChannel>> a_channels;
+    Vec<std::optional<IOChannel>> b_channels;
     int mParty;
 
     std::shared_ptr<NetIO> make_net_io(const char * address, int port) {
@@ -23,42 +23,42 @@ public:
     NetIOMP(int nP, int party, int port)
     :
         nP(nP),
-        ios(nP+1),
-        ios2(nP+1),
+        a_channels(nP+1),
+        b_channels(nP+1),
         mParty(party)
     {
         for(int i = 1; i <= nP; ++i)for(int j = 1; j <= nP; ++j)if(i < j){
             if(i == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                ios[j].emplace(make_net_io(IP[j], port+2*(i*nP+j)));
+                a_channels[j].emplace(make_net_io(IP[j], port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                ios[j].emplace(make_net_io(IP[j], port+2*(i)));
+                a_channels[j].emplace(make_net_io(IP[j], port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
                 usleep(1000);
-                ios2[j].emplace(make_net_io(nullptr, port+2*(i*nP+j)+1));
+                b_channels[j].emplace(make_net_io(nullptr, port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                ios2[j].emplace(make_net_io(nullptr, port+2*(j)+1));
+                b_channels[j].emplace(make_net_io(nullptr, port+2*(j)+1));
 #endif
             } else if(j == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                ios[i].emplace(make_net_io(nullptr, port+2*(i*nP+j)));
+                a_channels[i].emplace(make_net_io(nullptr, port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                ios[i].emplace(make_net_io(nullptr, port+2*(i)));
+                a_channels[i].emplace(make_net_io(nullptr, port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
                 usleep(1000);
-                ios2[i].emplace(make_net_io(IP[i], port+2*(i*nP+j)+1));
+                b_channels[i].emplace(make_net_io(IP[i], port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                ios2[i].emplace(make_net_io(IP[i], port+2*(j)+1));
+                b_channels[i].emplace(make_net_io(IP[i], port+2*(j)+1));
 #endif
             }
         }
@@ -72,28 +72,26 @@ public:
         return nP;
     }
 
-    IOChannel& send_channel(int party2) {
+    IOChannel& a_channel(int party2) {
         assert(party2 != 0);
         assert(party2 != party());
 
-        return party() < party2 ? *ios[party2] : *ios2[party2];
+        return *a_channels[party2];
     }
-    IOChannel& recv_channel(int party2) {
+    IOChannel& b_channel(int party2) {
         assert(party2 != 0);
         assert(party2 != party());
 
-        flush(party2);
-
-        return party2 < party() ? *ios[party2] : *ios2[party2];
+        return *b_channels[party2];
     }
 
     void flush(int idx) {
         assert(idx != 0);
 
         if(party() < idx)
-            ios[idx]->flush();
+            a_channels[idx]->flush();
         else
-            ios2[idx]->flush();
+            b_channels[idx]->flush();
     }
 };
 

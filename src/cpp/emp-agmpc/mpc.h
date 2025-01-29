@@ -170,12 +170,12 @@ class CMPC { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            io->send_channel(party2).send_data(&x.at(party, 0), num_ands);
-            io->send_channel(party2).send_data(&y.at(party, 0), num_ands);
+            get_send_channel(*io, party2).send_data(&x.at(party, 0), num_ands);
+            get_send_channel(*io, party2).send_data(&y.at(party, 0), num_ands);
             io->flush(party2);
 
-            io->recv_channel(party2).recv_data(&x.at(party2, 0), num_ands);
-            io->recv_channel(party2).recv_data(&y.at(party2, 0), num_ands);
+            get_recv_channel(*io, party2).recv_data(&x.at(party2, 0), num_ands);
+            get_recv_channel(*io, party2).recv_data(&y.at(party2, 0), num_ands);
         }
         for(int i = 2; i <= nP; ++i) for(int j = 0; j < num_ands; ++j) {
             x.at(1, j) = x.at(1, j) != x.at(i, j);
@@ -262,7 +262,7 @@ class CMPC { public:
                         H.at(j, party) = H.at(j, party) ^ Delta;
                 }
                 for(int j = 0; j < 4; ++j)
-                    io->send_channel(1).send_data(&H.at(j, 1), sizeof(block)*(nP));
+                    get_send_channel(*io, 1).send_data(&H.at(j, 1), sizeof(block)*(nP));
                 ++ands;
             }
             io->flush(1);
@@ -271,7 +271,7 @@ class CMPC { public:
                 int party2 = i;
                 for(int i = 0; i < num_ands; ++i)
                     for(int j = 0; j < 4; ++j)
-                        io->recv_channel(party2).recv_data(&GT.at(i, party2, j, 1), sizeof(block)*(nP));
+                        get_recv_channel(*io, party2).recv_data(&GT.at(i, party2, j, 1), sizeof(block)*(nP));
             }
             for(int i = 0; i < cf->num_gate; ++i) if(cf->gates[4*i+3] == AND_GATE) {
                 r[0] = sigma_value[ands] != value[cf->gates[4*i+2]];
@@ -339,13 +339,13 @@ class CMPC { public:
             for(int i = 0; i < num_in; ++i) {
                 block tmp = labels[i];
                 if(mask_input[i]) tmp = tmp ^ Delta;
-                io->send_channel(1).send_data(&tmp, sizeof(block));
+                get_send_channel(*io, 1).send_data(&tmp, sizeof(block));
             }
             io->flush(1);
         } else {
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
-                io->recv_channel(party2).recv_data(&eval_labels.at(party2, 0), num_in*sizeof(block));
+                get_recv_channel(*io, party2).recv_data(&eval_labels.at(party2, 0), num_in*sizeof(block));
             }
 
             int ands = 0;

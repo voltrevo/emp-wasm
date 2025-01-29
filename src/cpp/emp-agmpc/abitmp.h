@@ -43,11 +43,11 @@ class ABitMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
             if(i == party) {
-                abit1[j].emplace(io->recv_channel(j));
-                abit2[j].emplace(io->send_channel(j));
+                abit1[j].emplace(get_recv_channel(*io, j));
+                abit2[j].emplace(get_send_channel(*io, j));
             } else if (j == party) {
-                abit2[i].emplace(io->send_channel(i));
-                abit1[i].emplace(io->recv_channel(i));
+                abit2[i].emplace(get_send_channel(*io, i));
+                abit1[i].emplace(get_recv_channel(*io, i));
             }
         }
 
@@ -172,13 +172,13 @@ class ABitMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            io->send_channel(party2).send_data(Ms[party2], sizeof(block)*ssp);
-            io->send_channel(party2).send_data(bs[party2], ssp);
+            get_send_channel(*io, party2).send_data(Ms[party2], sizeof(block)*ssp);
+            get_send_channel(*io, party2).send_data(bs[party2], ssp);
             io->flush(party2);
             res.push_back(false);
 
-            io->recv_channel(party2).recv_data(tMs[party2], sizeof(block)*ssp);
-            io->recv_channel(party2).recv_data(tbs[party2], ssp);
+            get_recv_channel(*io, party2).recv_data(tMs[party2], sizeof(block)*ssp);
+            get_recv_channel(*io, party2).recv_data(tbs[party2], ssp);
             for(int k = 0; k < ssp; ++k) {
                 if(tbs[party2][k])
                     Ks[party2][k] = Ks[party2][k] ^ Delta;
@@ -232,12 +232,12 @@ class ABitMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            io->send_channel(party2).send_data(dgst[party], Hash::DIGEST_SIZE);
-            io->send_channel(party2).send_data(dgst0[party*ssp], Hash::DIGEST_SIZE*ssp);
-            io->send_channel(party2).send_data(dgst1[party*ssp], Hash::DIGEST_SIZE*ssp);
-            io->recv_channel(party2).recv_data(dgst[party2], Hash::DIGEST_SIZE);
-            io->recv_channel(party2).recv_data(dgst0[party2*ssp], Hash::DIGEST_SIZE*ssp);
-            io->recv_channel(party2).recv_data(dgst1[party2*ssp], Hash::DIGEST_SIZE*ssp);
+            get_send_channel(*io, party2).send_data(dgst[party], Hash::DIGEST_SIZE);
+            get_send_channel(*io, party2).send_data(dgst0[party*ssp], Hash::DIGEST_SIZE*ssp);
+            get_send_channel(*io, party2).send_data(dgst1[party*ssp], Hash::DIGEST_SIZE*ssp);
+            get_recv_channel(*io, party2).recv_data(dgst[party2], Hash::DIGEST_SIZE);
+            get_recv_channel(*io, party2).recv_data(dgst0[party2*ssp], Hash::DIGEST_SIZE*ssp);
+            get_recv_channel(*io, party2).recv_data(dgst1[party2*ssp], Hash::DIGEST_SIZE*ssp);
         }
 
         vector<bool> res2;
@@ -247,16 +247,16 @@ class ABitMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            io->send_channel(party2).send_data(data + length - 3*ssp, ssp);
+            get_send_channel(*io, party2).send_data(data + length - 3*ssp, ssp);
             for(int k = 1; k <= nP; ++k) if(k != party)
-                io->send_channel(party2).send_data(&MAC.at(k, length - 3*ssp), sizeof(block)*ssp);
+                get_send_channel(*io, party2).send_data(&MAC.at(k, length - 3*ssp), sizeof(block)*ssp);
             res2.push_back(false);
 
             Hash h;
-            io->recv_channel(party2).recv_data(bs[party2], ssp);
+            get_recv_channel(*io, party2).recv_data(bs[party2], ssp);
             h.put(bs[party2], ssp);
             for(int k = 1; k <= nP; ++k) if(k != party2) {
-                io->recv_channel(party2).recv_data(Ms[party2][k], sizeof(block)*ssp);
+                get_recv_channel(*io, party2).recv_data(Ms[party2][k], sizeof(block)*ssp);
                 h.put(Ms[party2][k], sizeof(block)*ssp);
             }
             char tmp[Hash::DIGEST_SIZE];h.digest(tmp);
@@ -272,20 +272,20 @@ class ABitMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
 
-            io->send_channel(party2).send_data(bs[party], ssp);
+            get_send_channel(*io, party2).send_data(bs[party], ssp);
             for(int i = 0; i < ssp; ++i) {
                 if(bs[party][i])
-                    io->send_channel(party2).send_data(&Ks[1][i], sizeof(block));
+                    get_send_channel(*io, party2).send_data(&Ks[1][i], sizeof(block));
                 else
-                    io->send_channel(party2).send_data(&Ks[0][i], sizeof(block));
+                    get_send_channel(*io, party2).send_data(&Ks[0][i], sizeof(block));
             }
             io->flush(party2);
             res2.push_back(false);
 
             bool cheat = false;
             bool *tmp_bool = new bool[ssp];
-            io->recv_channel(party2).recv_data(tmp_bool, ssp);
-            io->recv_channel(party2).recv_data(KK[party2], ssp*sizeof(block));
+            get_recv_channel(*io, party2).recv_data(tmp_bool, ssp);
+            get_recv_channel(*io, party2).recv_data(KK[party2], ssp*sizeof(block));
             for(int i = 0; i < ssp; ++i) {
                 char tmp[Hash::DIGEST_SIZE];
                 Hash::hash_once(tmp, &KK[party2][i], sizeof(block));

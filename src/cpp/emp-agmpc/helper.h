@@ -91,13 +91,13 @@ block sampleRandom(int nP, IMultiIO& io, PRG * prg, int party) {
 
     for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
         int party2 = i + j - party;
-        io.send_channel(party2).send_data(dgst[party], Hash::DIGEST_SIZE);
-        io.recv_channel(party2).recv_data(dgst[party2], Hash::DIGEST_SIZE);
+        get_send_channel(io, party2).send_data(dgst[party], Hash::DIGEST_SIZE);
+        get_recv_channel(io, party2).recv_data(dgst[party2], Hash::DIGEST_SIZE);
     }
     for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
         int party2 = i + j - party;
-        io.send_channel(party2).send_data(&S[party], sizeof(block));
-        io.recv_channel(party2).recv_data(&S[party2], sizeof(block));
+        get_send_channel(io, party2).send_data(&S[party], sizeof(block));
+        get_recv_channel(io, party2).recv_data(&S[party2], sizeof(block));
         char tmp[Hash::DIGEST_SIZE];
         Hash::hash_once(tmp, &S[party2], sizeof(block));
         bool cheat = strncmp(tmp, dgst[party2], Hash::DIGEST_SIZE)!=0;
@@ -130,12 +130,12 @@ void check_MAC(
     block tD;
     for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if (i < j) {
         if(party == i) {
-            io.send_channel(j).send_data(&Delta, sizeof(block));
-            io.send_channel(j).send_data(&KEY.at(j, 0), sizeof(block)*length);
+            get_send_channel(io, j).send_data(&Delta, sizeof(block));
+            get_send_channel(io, j).send_data(&KEY.at(j, 0), sizeof(block)*length);
             io.flush(j);
         } else if(party == j) {
-            io.recv_channel(i).recv_data(&tD, sizeof(block));
-            io.recv_channel(i).recv_data(tmp, sizeof(block)*length);
+            get_recv_channel(io, i).recv_data(&tD, sizeof(block));
+            get_recv_channel(io, i).recv_data(tmp, sizeof(block)*length);
             for(int k = 0; k < length; ++k) {
                 if(r[k])tmp[k] = tmp[k] ^ tD;
             }
@@ -154,7 +154,7 @@ void check_correctness(int nP, IMultiIO& io, bool * r, int length, int party) {
         bool * tmp2 = new bool[length*3];
         memcpy(tmp1, r, length*3);
         for(int i = 2; i <= nP; ++i) {
-            io.recv_channel(i).recv_data(tmp2, length*3);
+            get_recv_channel(io, i).recv_data(tmp2, length*3);
             for(int k = 0; k < length*3; ++k)
                 tmp1[k] = (tmp1[k] != tmp2[k]);
         }
@@ -166,7 +166,7 @@ void check_correctness(int nP, IMultiIO& io, bool * r, int length, int party) {
         delete[] tmp2;
         cerr<<"check_correctness pass!\n"<<flush;
     } else {
-        io.send_channel(1).send_data(r, length*3);
+        get_send_channel(io, 1).send_data(r, length*3);
         io.flush(1);
     }
 }
@@ -176,8 +176,8 @@ uint64_t count_multi_io(IMultiIO& io) {
 
     for (int i = 1; i <= io.size(); ++i) {
         if (i != io.party()) {
-            res += *io.send_channel(i).counter;
-            res += *io.recv_channel(i).counter;
+            res += *get_send_channel(io, i).counter;
+            res += *get_recv_channel(io, i).counter;
         }
     }
 
