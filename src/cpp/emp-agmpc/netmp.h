@@ -13,47 +13,46 @@ class NetIOMP { public:
     Vec<std::optional<IOChannel>> ios;
     Vec<std::optional<IOChannel>> ios2;
     int party;
-    Vec<bool> sent;
+
     NetIOMP(int nP, int party, int port)
     :
         nP(nP),
         ios(nP+1),
         ios2(nP+1),
-        party(party),
-        sent(nP+1)
+        party(party)
     {
         for(int i = 1; i <= nP; ++i)for(int j = 1; j <= nP; ++j)if(i < j){
             if(i == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                ios[j].emplace(std::make_shared<NetIO>(IP[j], port+2*(i*nP+j)));
+                ios[j].emplace(make_net_io(IP[j], port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                ios[j].emplace(std::make_shared<NetIO>(IP[j], port+2*(i)));
+                ios[j].emplace(make_net_io(IP[j], port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
                 usleep(1000);
-                ios2[j].emplace(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)+1));
+                ios2[j].emplace(make_net_io(nullptr, port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                ios2[j].emplace(std::make_shared<NetIO>(nullptr, port+2*(j)+1));
+                ios2[j].emplace(make_net_io(nullptr, port+2*(j)+1));
 #endif
             } else if(j == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                ios[i].emplace(std::make_shared<NetIO>(nullptr, port+2*(i*nP+j)));
+                ios[i].emplace(make_net_io(nullptr, port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                ios[i].emplace(std::make_shared<NetIO>(nullptr, port+2*(i)));
+                ios[i].emplace(make_net_io(nullptr, port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
                 usleep(1000);
-                ios2[i].emplace(std::make_shared<NetIO>(IP[i], port+2*(i*nP+j)+1));
+                ios2[i].emplace(make_net_io(IP[i], port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                ios2[i].emplace(std::make_shared<NetIO>(IP[i], port+2*(j)+1));
+                ios2[i].emplace(make_net_io(IP[i], port+2*(j)+1));
 #endif
             }
         }
@@ -75,19 +74,10 @@ class NetIOMP { public:
             ios[dst]->send_data(data, len);
         else
             ios2[dst]->send_data(data, len);
-
-        sent[dst] = true;
-
-#ifdef __MORE_FLUSH
-        flush(dst);
-#endif
     }
     void recv_data(int src, void * data, size_t len) {
         assert(src != 0);
         assert(src != party);
-
-        if(sent[src])
-            flush(src);
 
         if(src < party)
             ios[src]->recv_data(data, len);
@@ -110,6 +100,13 @@ class NetIOMP { public:
             ios[idx]->flush();
         else
             ios2[idx]->flush();
+    }
+
+    std::shared_ptr<NetIO> make_net_io(const char * address, int port) {
+        auto io = std::make_shared<NetIO>(address, port);
+        io->flush_all_sends = true;
+
+        return io;
     }
 };
 

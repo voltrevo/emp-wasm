@@ -28,6 +28,8 @@ public:
     bool has_sent = false;
     string addr;
     int port;
+    bool flush_all_sends = false;
+
     NetIO(const char * address, int port) {
         if (port <0 || port > 65535) {
             throw std::runtime_error("Invalid port number!");
@@ -128,6 +130,9 @@ public:
                 error("net_send_data\n");
         }
         has_sent = true;
+
+        if(flush_all_sends)
+            flush();
     }
 
     void recv(void  * data, size_t len) {
