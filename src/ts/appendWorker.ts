@@ -4,10 +4,11 @@ type Module = {
   emp?: {
     circuit?: string;
     input?: Uint8Array;
+    inputBitsStart?: number;
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
   };
-  _run(party: number): void;
+  _run(party: number, size: number): void;
   onRuntimeInitialized: () => void;
 };
 
@@ -25,9 +26,11 @@ declare const createModule: () => Promise<Module>
  * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
  */
 async function secure2PC(
-  party: 'alice' | 'bob',
+  party: number,
+  size: number,
   circuit: string,
   input: Uint8Array,
+  inputBitsStart: number,
   io: IO,
 ): Promise<Uint8Array> {
   const module = await createModule();
@@ -41,6 +44,7 @@ async function secure2PC(
   const emp: {
     circuit?: string;
     input?: Uint8Array;
+    inputBitsStart?: number;
     io?: IO;
     handleOutput?: (value: Uint8Array) => void
   } = {};
@@ -49,6 +53,7 @@ async function secure2PC(
 
   emp.circuit = circuit;
   emp.input = input;
+  emp.inputBitsStart = inputBitsStart;
   emp.io = io;
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
@@ -56,7 +61,7 @@ async function secure2PC(
       emp.handleOutput = resolve;
       // TODO: emp.handleError
 
-      module._run(partyToIndex(party));
+      module._run(party, size);
     } catch (error) {
       reject(error);
     }
@@ -67,25 +72,6 @@ async function secure2PC(
   } finally {
     running = false;
   }
-}
-
-/**
- * Maps a party ('alice' or 'bob') to an index number.
- *
- * @param party - The party ('alice' or 'bob').
- * @returns 1 for 'alice', 2 for 'bob'.
- * @throws Will throw an error if the party is invalid.
- */
-function partyToIndex(party: 'alice' | 'bob'): number {
-  if (party === 'alice') {
-    return 1;
-  }
-
-  if (party === 'bob') {
-    return 2;
-  }
-
-  throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
 }
 
 let requestId = 0;
@@ -101,24 +87,24 @@ onmessage = async (event) => {
   const message = event.data;
 
   if (message.type === 'start') {
-    const { party, circuit, input } = message;
+    const { party, size, circuit, input, inputBitsStart } = message;
 
     // Create a proxy IO object to communicate with the main thread
     const io: IO = {
-      send: (data) => {
-        postMessage({ type: 'io_send', data });
+      send: (party2, channel, data) => {
+        postMessage({ type: 'io_send', party2, channel, data });
       },
-      recv: (len) => {
+      recv: (party2, channel, len) => {
         return new Promise((resolve, reject) => {
           const id = requestId++;
           pendingRequests[id] = { resolve, reject };
-          postMessage({ type: 'io_recv', len, id });
+          postMessage({ type: 'io_recv', party2, channel, len, id });
         });
       },
     };
 
     try {
-      const result = await secure2PC(party, circuit, input, io);
+      const result = await secure2PC(party, size, circuit, input, inputBitsStart, io);
       postMessage({ type: 'result', result });
     } catch (error) {
       postMessage({ type: 'error', error: (error as Error).message });

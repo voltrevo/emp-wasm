@@ -6,13 +6,15 @@ import nodeSecure2PC from "./nodeSecure2PC.js";
 export type Secure2PC = typeof secure2PC;
 
 export default function secure2PC(
-  party: 'alice' | 'bob',
+  party: number,
+  size: number,
   circuit: string,
   input: Uint8Array,
+  inputBitsStart: number,
   io: IO,
 ): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
-    return nodeSecure2PC(party, circuit, input, io);
+    return nodeSecure2PC(party, size, circuit, input, inputBitsStart, io);
   }
 
   const ev = new EventEmitter<{ cleanup(): void }>();
@@ -27,8 +29,10 @@ export default function secure2PC(
     worker.postMessage({
       type: 'start',
       party,
+      size,
       circuit,
       input,
+      inputBitsStart,
     });
 
     worker.onmessage = async (event) => {
@@ -36,11 +40,13 @@ export default function secure2PC(
 
       if (message.type === 'io_send') {
         // Forward the send request to the main thread's io.send
-        io.send(message.data);
+        const { party2, channel, data } = message;
+        io.send(party2, channel, data);
       } else if (message.type === 'io_recv') {
+        const { party2, channel, len } = message;
         // Handle the recv request from the worker
         try {
-          const data = await io.recv(message.len);
+          const data = await io.recv(party2, channel, len);
           worker.postMessage({ type: 'io_recv_response', id: message.id, data });
         } catch (error) {
           worker.postMessage({

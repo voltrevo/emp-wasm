@@ -10,9 +10,11 @@ import type { IO } from "./types";
  * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
  */
 export default async function nodeSecure2PC(
-  party: 'alice' | 'bob',
+  party: number,
+  size: number,
   circuit: string,
   input: Uint8Array,
+  inputBitsStart: number,
   io: IO,
 ): Promise<Uint8Array> {
   if (typeof process === 'undefined' || typeof process.versions === 'undefined' || !process.versions.node) {
@@ -24,6 +26,7 @@ export default async function nodeSecure2PC(
   const emp: {
     circuit?: string;
     input?: Uint8Array;
+    inputBitsStart?: number;
     io?: IO;
     handleOutput?: (value: Uint8Array) => void
   } = {};
@@ -32,6 +35,7 @@ export default async function nodeSecure2PC(
 
   emp.circuit = circuit;
   emp.input = input;
+  emp.inputBitsStart = inputBitsStart;
   emp.io = io;
 
   const result = await new Promise<Uint8Array>((resolve, reject) => {
@@ -39,30 +43,11 @@ export default async function nodeSecure2PC(
       emp.handleOutput = resolve;
       // TODO: emp.handleError
 
-      module._run(partyToIndex(party));
+      module._run(party, size);
     } catch (error) {
       reject(error);
     }
   });
 
   return result;
-}
-
-/**
- * Maps a party ('alice' or 'bob') to an index number.
- *
- * @param party - The party ('alice' or 'bob').
- * @returns 1 for 'alice', 2 for 'bob'.
- * @throws Will throw an error if the party is invalid.
- */
-function partyToIndex(party: 'alice' | 'bob'): number {
-  if (party === 'alice') {
-    return 1;
-  }
-
-  if (party === 'bob') {
-    return 2;
-  }
-
-  throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
 }
