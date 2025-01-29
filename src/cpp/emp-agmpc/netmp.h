@@ -8,12 +8,21 @@
 #include "vec.h"
 using namespace emp;
 
-class NetIOMP { public:
+class NetIOMP: public IMultiIO {
+private:
     int nP;
     Vec<std::optional<IOChannel>> ios;
     Vec<std::optional<IOChannel>> ios2;
     int party;
 
+    std::shared_ptr<NetIO> make_net_io(const char * address, int port) {
+        auto io = std::make_shared<NetIO>(address, port);
+        io->flush_all_sends = true;
+
+        return io;
+    }
+
+public:
     NetIOMP(int nP, int party, int port)
     :
         nP(nP),
@@ -57,6 +66,11 @@ class NetIOMP { public:
             }
         }
     }
+
+    int size() {
+        return nP;
+    }
+
     int64_t count() {
         int64_t res = 0;
         for(int i = 1; i <= nP; ++i) if(i != party){
@@ -77,13 +91,6 @@ class NetIOMP { public:
         assert(party2 != party);
 
         return party2 < party ? *ios[party2] : *ios2[party2];
-    }
-
-    std::shared_ptr<NetIO> make_net_io(const char * address, int port) {
-        auto io = std::make_shared<NetIO>(address, port);
-        io->flush_all_sends = true;
-
-        return io;
     }
 };
 
