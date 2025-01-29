@@ -16,10 +16,7 @@ private:
     int mParty;
 
     std::shared_ptr<NetIO> make_net_io(const char * address, int port) {
-        auto io = std::make_shared<NetIO>(address, port);
-        io->flush_all_sends = true;
-
-        return io;
+        return std::make_shared<NetIO>(address, port);
     }
 
 public:
@@ -85,7 +82,22 @@ public:
         assert(party2 != 0);
         assert(party2 != party());
 
+        for (int i = 1; i <= nP; i++) {
+            if (i != party()) {
+                flush(i);
+            }
+        }
+
         return party2 < party() ? *ios[party2] : *ios2[party2];
+    }
+
+    void flush(int idx) {
+        assert(idx != 0);
+
+        if(party() < idx)
+            ios[idx]->flush();
+        else
+            ios2[idx]->flush();
     }
 };
 

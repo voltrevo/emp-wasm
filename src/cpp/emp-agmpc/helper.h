@@ -132,6 +132,7 @@ void check_MAC(
         if(party == i) {
             io.send_channel(j).send_data(&Delta, sizeof(block));
             io.send_channel(j).send_data(&KEY.at(j, 0), sizeof(block)*length);
+            io.flush(j);
         } else if(party == j) {
             io.recv_channel(i).recv_data(&tD, sizeof(block));
             io.recv_channel(i).recv_data(tmp, sizeof(block)*length);
@@ -166,6 +167,7 @@ void check_correctness(int nP, IMultiIO& io, bool * r, int length, int party) {
         cerr<<"check_correctness pass!\n"<<flush;
     } else {
         io.send_channel(1).send_data(r, length*3);
+        io.flush(1);
     }
 }
 
