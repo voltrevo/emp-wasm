@@ -14,8 +14,6 @@ class CMPC { public:
     const block MASK = makeBlock(0x0ULL, 0xFFFFFULL);
     FpreMP* fpre = nullptr;
 
-    int nP;
-
     NVec<block> mac; // dim: parties, wires
     NVec<block> key; // dim: parties, wires
     Vec<bool> value; // dim: wires
@@ -35,6 +33,7 @@ class CMPC { public:
     Vec<block> labels; // dim: wires
     BristolFormat * cf;
     std::shared_ptr<IMultiIO> io;
+    int nP;
     int num_ands = 0, num_in;
     int party, total_pre, ssp;
     block Delta;
@@ -356,21 +355,21 @@ class CMPC { public:
                     mask_input[cf->gates[4*i+2]] = mask_input[cf->gates[4*i]] != mask_input[cf->gates[4*i+1]];
                 } else if (cf->gates[4*i+3] == AND_GATE) {
                     int index = 2*mask_input[cf->gates[4*i]] + mask_input[cf->gates[4*i+1]];
-                    block H[nP+1];
+                    Vec<block> H(nP+1);
                     for(int j = 2; j <= nP; ++j)
                         eval_labels.at(j, cf->gates[4*i+2]) = GTM.at(ands, index, j);
                     mask_input[cf->gates[4*i+2]] = GTv.at(ands, index);
                     for(int j = 2; j <= nP; ++j) {
-                        Hash(H, eval_labels.at(j, cf->gates[4*i]), eval_labels.at(j, cf->gates[4*i+1]), ands, index);
-                        xorBlocks_arr(H, H, &GT.at(ands, j, index, 0), nP+1);
+                        Hash(&H.at(0), eval_labels.at(j, cf->gates[4*i]), eval_labels.at(j, cf->gates[4*i+1]), ands, index);
+                        xorBlocks_arr(&H.at(0), &H.at(0), &GT.at(ands, j, index, 0), nP+1);
                         for(int k = 2; k <= nP; ++k)
-                            eval_labels.at(k, cf->gates[4*i+2]) = H[k] ^ eval_labels.at(k, cf->gates[4*i+2]);
+                            eval_labels.at(k, cf->gates[4*i+2]) = H.at(k) ^ eval_labels.at(k, cf->gates[4*i+2]);
 
                         block t0 = GTK.at(ands, index, j) ^ Delta;
 
-                        if(cmpBlock(&H[1], &GTK.at(ands, index, j), 1))
+                        if(cmpBlock(&H.at(1), &GTK.at(ands, index, j), 1))
                             mask_input[cf->gates[4*i+2]] = mask_input[cf->gates[4*i+2]] != false;
-                        else if(cmpBlock(&H[1], &t0, 1))
+                        else if(cmpBlock(&H.at(1), &t0, 1))
                             mask_input[cf->gates[4*i+2]] = mask_input[cf->gates[4*i+2]] != true;
                         else     {cout <<ands <<"no match GT!"<<endl<<flush;
                         }

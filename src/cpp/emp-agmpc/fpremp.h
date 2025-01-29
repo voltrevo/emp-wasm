@@ -11,9 +11,9 @@
 using namespace emp;
 
 class FpreMP { public:
+    std::shared_ptr<IMultiIO> io;
     int nP;
     int party;
-    std::shared_ptr<IMultiIO> io;
     ABitMP* abit;
     block Delta;
     CRH * prps;
@@ -243,9 +243,7 @@ class FpreMP { public:
 
         int * ind = new int[length*bucket_size];
         int *location = new int[length*bucket_size];
-        bool * d[nP+1];
-        for(int i = 1; i <= nP; ++i)
-            d[i] = new bool[length*(bucket_size-1)];
+        NVec<bool> d(nP+1, length*(bucket_size-1));
         for(int i = 0; i < length*bucket_size; ++i)
             location[i] = i;
         PRG prg2(&S);
@@ -261,7 +259,7 @@ class FpreMP { public:
 
         for(int i = 0; i < length; ++i) {
             for(int j = 0; j < bucket_size-1; ++j)
-                d[party][(bucket_size-1)*i+j] = tr[3*location[i*bucket_size]+1] != tr[3*location[i*bucket_size+1+j]+1];
+                d.at(party, (bucket_size-1)*i+j) = tr[3*location[i*bucket_size]+1] != tr[3*location[i*bucket_size+1+j]+1];
             for(int j = 1; j <= nP; ++j) if (j!= party) {
                 memcpy(&MAC.at(j, 3*i), &tMAC.at(j, 3*location[i*bucket_size]), 3*sizeof(block));
                 memcpy(&KEY.at(j, 3*i), &tKEY.at(j, 3*location[i*bucket_size]), 3*sizeof(block));
@@ -282,24 +280,24 @@ class FpreMP { public:
 
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
-            get_send_channel(*io, party2).send_data(d[party], (bucket_size-1)*length);
+            get_send_channel(*io, party2).send_data(&d.at(party, 0), (bucket_size-1)*length);
             io->flush(party2);
-            get_recv_channel(*io, party2).recv_data(d[party2], (bucket_size-1)*length);
+            get_recv_channel(*io, party2).recv_data(&d.at(party2, 0), (bucket_size-1)*length);
         }
         for(int i = 2; i <= nP; ++i)
             for(int j = 0; j <  (bucket_size-1)*length; ++j)
-                d[1][j] = d[1][j]!=d[i][j];
+                d.at(1, j) = d.at(1, j) != d.at(i, j);
 
         for(int i = 0; i < length; ++i)  {
             for(int j = 1; j <= nP; ++j)if (j!= party) {
                 for(int k = 1; k < bucket_size; ++k)
-                    if(d[1][(bucket_size-1)*i+k-1]) {
+                    if(d.at(1, (bucket_size-1)*i+k-1)) {
                         MAC.at(j, 3*i+2) = MAC.at(j, 3*i+2) ^ tMAC.at(j, 3*location[i*bucket_size+k]);
                         KEY.at(j, 3*i+2) = KEY.at(j, 3*i+2) ^ tKEY.at(j, 3*location[i*bucket_size+k]);
                     }
             }
             for(int k = 1; k < bucket_size; ++k)
-                if(d[1][(bucket_size-1)*i+k-1]) {
+                if(d.at(1, (bucket_size-1)*i+k-1)) {
                     r[3*i+2] = r[3*i+2] != tr[3*location[i*bucket_size+k]];
                 }
         }

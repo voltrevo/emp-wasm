@@ -64,28 +64,28 @@ public:
         }
     }
 
-    int party() {
+    int party() override {
         return mParty;
     }
 
-    int size() {
+    int size() override {
         return nP;
     }
 
-    IOChannel& a_channel(int party2) {
+    IOChannel& a_channel(int party2) override {
         assert(party2 != 0);
         assert(party2 != party());
 
         return *a_channels[party2];
     }
-    IOChannel& b_channel(int party2) {
+    IOChannel& b_channel(int party2) override {
         assert(party2 != 0);
         assert(party2 != party());
 
         return *b_channels[party2];
     }
 
-    void flush(int idx) {
+    void flush(int idx) override {
         assert(idx != 0);
 
         if(party() < idx)
