@@ -82,11 +82,7 @@ public:
         assert(party2 != 0);
         assert(party2 != party());
 
-        for (int i = 1; i <= nP; i++) {
-            if (i != party()) {
-                flush(i);
-            }
-        }
+        flush(party2);
 
         return party2 < party() ? *ios[party2] : *ios2[party2];
     }
