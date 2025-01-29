@@ -163,9 +163,7 @@ public:
                     int party2 = i + j - party;
 
                     io->send_channel(party2).send_data(open_bit_shares_for_plaintext_input_send[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->recv_channel(party2).recv_data(open_bit_shares_for_plaintext_input_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                 }
             }
         }
@@ -223,9 +221,7 @@ public:
                     int party2 = i + j - party;
 
                     io->send_channel(party2).send_data(masked_input_sent.data(), sizeof(char) * len);
-                    io->flush(party2);
                     io->recv_channel(party2).recv_data(masked_input_recv[party2].data(), sizeof(char) * len);
-                    io->flush(party2);
                 }
             }
         }
@@ -322,9 +318,7 @@ public:
                     int party2 = i + j - party;
 
                     io->send_channel(party2).send_data(open_bit_shares_for_authenticated_bits_send[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->recv_channel(party2).recv_data(open_bit_shares_for_authenticated_bits_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                 }
             }
         }
@@ -395,9 +389,7 @@ public:
                     int party2 = i + j - party;
 
                     io->send_channel(party2).send_data(open_bit_shares_for_unauthenticated_bits_send.data(), sizeof(char) * len);
-                    io->flush(party2);
                     io->recv_channel(party2).recv_data(open_bit_shares_for_unauthenticated_bits_recv[party2].data(), sizeof(char) * len);
-                    io->flush(party2);
                 }
             }
         }
@@ -454,9 +446,7 @@ public:
                     int party2 = i + j - party;
 
                     io->send_channel(party2).send_data(open_bit_shares_for_public_input_send[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->recv_channel(party2).recv_data(open_bit_shares_for_public_input_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                 }
             }
         }
@@ -608,11 +598,9 @@ public:
 
             for(int j = 2; j <= nP; j++) {
                 io->send_channel(j).send_data(output_wire_label_send[j].data(), sizeof(block) * len);
-                io->flush(j);
             }
         }else {
             io->recv_channel(ALICE).recv_data(output_wire_label_recv.data(), sizeof(block) * len);
-            io->flush(ALICE);
         }
 
         /*
@@ -683,9 +671,7 @@ public:
                     int party2 = i + j - party;
 
                     io->send_channel(party2).send_data(output_mask_send[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                     io->recv_channel(party2).recv_data(output_mask_recv[party2].data(), sizeof(BitWithMac) * len);
-                    io->flush(party2);
                 }
             }
         }

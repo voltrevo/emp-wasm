@@ -71,7 +71,6 @@ class FpreMP { public:
                     io->send_channel(j).send_data(&data, 1);
                     s.at(j, k) = (s.at(j, k) != (tr[3*k] and tr[3*k+1]));
                 }
-                io->flush(j);
             } else if (j == party) {
                 for(int k = 0; k < length*bucket_size; ++k) {
                     uint8_t data = 0;
@@ -98,7 +97,6 @@ class FpreMP { public:
             int party2 = i + j - party;
 
             io->send_channel(party2).send_data(&e[0], length*bucket_size);
-            io->flush(party2);
 
             bool * tmp = new bool[length*bucket_size];
             io->recv_channel(party2).recv_data(tmp, length*bucket_size);
@@ -137,7 +135,6 @@ class FpreMP { public:
                         bH[1] = phi[k] ^ bH[1];
                         io->send_channel(party2).send_data(&bH[1], sizeof(block));
                     }
-                    io->flush(party2);
                 }
 
                 {
@@ -171,7 +168,6 @@ class FpreMP { public:
                         bH[1] = phi[k] ^ bH[1];
                         io->send_channel(party2).send_data(&bH[1], sizeof(block));
                     }
-                    io->flush(party2);
                 }
             }
         }
@@ -277,7 +273,6 @@ class FpreMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j<= nP; ++j) if( (i < j) and (i == party or j == party) ) {
             int party2 = i + j - party;
             io->send_channel(party2).send_data(d[party], (bucket_size-1)*length);
-            io->flush(party2);
             io->recv_channel(party2).recv_data(d[party2], (bucket_size-1)*length);
         }
         for(int i = 2; i <= nP; ++i)
@@ -351,7 +346,6 @@ class FpreMP { public:
             if(party == i) {
                 io->send_channel(j).send_data(phi, length*sizeof(block));
                 io->send_channel(j).send_data(&KEY.at(j, 0), sizeof(block)*length);
-                io->flush(j);
             } else if(party == j) {
                 io->recv_channel(i).recv_data(tD, length*sizeof(block));
                 io->recv_channel(i).recv_data(tmp, sizeof(block)*length);
@@ -387,7 +381,6 @@ class FpreMP { public:
             delete[] tmp2;
         } else {
             io->send_channel(1).send_data(b, l*sizeof(block));
-            io->flush(1);
         }
     }
     void HnID(CRH* crh, block*out, block* in, uint64_t id, int length, block * scratch = nullptr) {

@@ -50,16 +50,10 @@ class ABitMP { public:
         for(int i = 1; i <= nP; ++i) for(int j = 1; j <= nP; ++j) if(i < j) {
             if(i == party) {
                 abit1[j]->setup_send(tmp);
-                io->flush(j);
-
                 abit2[j]->setup_recv();
-                io->flush(j);
             } else if (j == party) {
                 abit2[i]->setup_recv();
-                io->flush(i);
-
                 abit1[i]->setup_send(tmp);
-                io->flush(i);
             }
         }
 
@@ -75,16 +69,10 @@ class ABitMP { public:
 
             if (party < party2) {
                 abit2[party2]->recv_cot(&MAC.at(party2, 0), data, length);
-                io->flush(party2);
-
                 abit1[party2]->send_cot(&KEY.at(party2, 0), length);
-                io->flush(party2);
             } else {
                 abit1[party2]->send_cot(&KEY.at(party2, 0), length);
-                io->flush(party2);
-
                 abit2[party2]->recv_cot(&MAC.at(party2, 0), data, length);
-                io->flush(party2);
             }
         }
 #ifdef __debug
@@ -170,7 +158,6 @@ class ABitMP { public:
 
             io->send_channel(party2).send_data(Ms[party2], sizeof(block)*ssp);
             io->send_channel(party2).send_data(bs[party2], ssp);
-            io->flush(party2);
             res.push_back(false);
 
             io->recv_channel(party2).recv_data(tMs[party2], sizeof(block)*ssp);
@@ -275,7 +262,6 @@ class ABitMP { public:
                 else
                     io->send_channel(party2).send_data(&Ks[0][i], sizeof(block));
             }
-            io->flush(party2);
             res2.push_back(false);
 
             bool cheat = false;

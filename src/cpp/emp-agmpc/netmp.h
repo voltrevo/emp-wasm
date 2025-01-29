@@ -79,15 +79,6 @@ class NetIOMP { public:
         return party2 < party ? *ios[party2] : *ios2[party2];
     }
 
-    void flush(int idx) {
-        assert(idx != 0);
-
-        if(party < idx)
-            ios[idx]->flush();
-        else
-            ios2[idx]->flush();
-    }
-
     std::shared_ptr<NetIO> make_net_io(const char * address, int port) {
         auto io = std::make_shared<NetIO>(address, port);
         io->flush_all_sends = true;

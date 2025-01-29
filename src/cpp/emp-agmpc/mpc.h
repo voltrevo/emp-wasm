@@ -173,7 +173,6 @@ class CMPC { public:
 
             io->send_channel(party2).send_data(&x.at(party, 0), num_ands);
             io->send_channel(party2).send_data(&y.at(party, 0), num_ands);
-            io->flush(party2);
 
             io->recv_channel(party2).recv_data(&x.at(party2, 0), num_ands);
             io->recv_channel(party2).recv_data(&y.at(party2, 0), num_ands);
@@ -266,7 +265,6 @@ class CMPC { public:
                     io->send_channel(1).send_data(&H.at(j, 1), sizeof(block)*(nP));
                 ++ands;
             }
-            io->flush(1);
         } else {
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
@@ -342,7 +340,6 @@ class CMPC { public:
                 if(mask_input[i]) tmp = tmp ^ Delta;
                 io->send_channel(1).send_data(&tmp, sizeof(block));
             }
-            io->flush(1);
         } else {
             for(int i = 2; i <= nP; ++i) {
                 int party2 = i;
