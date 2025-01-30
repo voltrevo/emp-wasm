@@ -371,7 +371,8 @@ class CMPC { public:
                             mask_input[cf->gates[4*i+2]] = mask_input[cf->gates[4*i+2]] != false;
                         else if(cmpBlock(&H.at(1), &t0, 1))
                             mask_input[cf->gates[4*i+2]] = mask_input[cf->gates[4*i+2]] != true;
-                        else     {cout <<ands <<"no match GT!"<<endl<<flush;
+                        else {
+                            throw std::runtime_error("no match GT!");
                         }
                     }
                     ands++;

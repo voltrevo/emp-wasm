@@ -21,7 +21,7 @@ async function internalDemo(
       2,
       add32BitCircuit,
       numberTo32Bits(aliceInput),
-      0,
+      [32, 32],
       {
         send: (party2, channel, data) => {
           expect(party2).to.equal(1);
@@ -38,7 +38,7 @@ async function internalDemo(
       2,
       add32BitCircuit,
       numberTo32Bits(bobInput),
-      32,
+      [32, 32],
       {
         send: (party2, channel, data) => {
           expect(party2).to.equal(0);
@@ -51,6 +51,8 @@ async function internalDemo(
       },
     ),
   ]);
+
+  console.log({ aliceBits, bobBits });
 
   return {
     alice: numberFrom32Bits(aliceBits),

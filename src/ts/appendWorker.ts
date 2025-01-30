@@ -4,7 +4,7 @@ type Module = {
   emp?: {
     circuit?: string;
     input?: Uint8Array;
-    inputBitsStart?: number;
+    inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
   };
@@ -30,7 +30,7 @@ async function secureMPC(
   size: number,
   circuit: string,
   input: Uint8Array,
-  inputBitsStart: number,
+  inputBitsPerParty: number[],
   io: IO,
 ): Promise<Uint8Array> {
   const module = await createModule();
@@ -44,22 +44,23 @@ async function secureMPC(
   const emp: {
     circuit?: string;
     input?: Uint8Array;
-    inputBitsStart?: number;
+    inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void
+    handleError?: (error: Error) => void;
   } = {};
 
   module.emp = emp;
 
   emp.circuit = circuit;
   emp.input = input;
-  emp.inputBitsStart = inputBitsStart;
+  emp.inputBitsPerParty = inputBitsPerParty;
   emp.io = io;
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
-      // TODO: emp.handleError
+      emp.handleError = reject;
 
       module._run(party, size);
     } catch (error) {
@@ -87,7 +88,7 @@ onmessage = async (event) => {
   const message = event.data;
 
   if (message.type === 'start') {
-    const { party, size, circuit, input, inputBitsStart } = message;
+    const { party, size, circuit, input, inputBitsPerParty } = message;
 
     // Create a proxy IO object to communicate with the main thread
     const io: IO = {
@@ -104,7 +105,7 @@ onmessage = async (event) => {
     };
 
     try {
-      const result = await secureMPC(party, size, circuit, input, inputBitsStart, io);
+      const result = await secureMPC(party, size, circuit, input, inputBitsPerParty, io);
       postMessage({ type: 'result', result });
     } catch (error) {
       postMessage({ type: 'error', error: (error as Error).message });

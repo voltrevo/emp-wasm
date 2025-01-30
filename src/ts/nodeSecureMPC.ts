@@ -14,7 +14,7 @@ export default async function nodeSecure2PC(
   size: number,
   circuit: string,
   input: Uint8Array,
-  inputBitsStart: number,
+  inputBitsPerParty: number[],
   io: IO,
 ): Promise<Uint8Array> {
   if (typeof process === 'undefined' || typeof process.versions === 'undefined' || !process.versions.node) {
@@ -26,22 +26,23 @@ export default async function nodeSecure2PC(
   const emp: {
     circuit?: string;
     input?: Uint8Array;
-    inputBitsStart?: number;
+    inputBitsPerParty?: number[];
     io?: IO;
-    handleOutput?: (value: Uint8Array) => void
+    handleOutput?: (value: Uint8Array) => void;
+    handleError?: (error: Error) => void;
   } = {};
 
   module.emp = emp;
 
   emp.circuit = circuit;
   emp.input = input;
-  emp.inputBitsStart = inputBitsStart;
+  emp.inputBitsPerParty = inputBitsPerParty;
   emp.io = io;
 
   const result = await new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
-      // TODO: emp.handleError
+      emp.handleError = reject;
 
       module._run(party, size);
     } catch (error) {

@@ -110,7 +110,7 @@ async function shell(cmd: string, args: string[], cwd: string): Promise<void> {
 async function fixEmscriptenCode(gitRoot: string) {
   await replaceInFile(
     join(gitRoot, 'build/jslib.js'),
-    'var fs=require("fs")',
+    ['var fs=require("fs")', "var fs = require('fs')"],
     // This doesn't really affect behavior, but it fixes a nextjs issue where
     // it analyzes the require statically and fails even when the code works as
     // a whole.
@@ -118,17 +118,23 @@ async function fixEmscriptenCode(gitRoot: string) {
   );
 }
 
-async function replaceInFile(path: string, search: string, replace: string) {
+async function replaceInFile(path: string, searches: string[], replace: string) {
   const content = await fs.readFile(path, 'utf-8');
-  const parts = content.split(search);
 
-  if (parts.length === 1) {
-    throw new Error(`Search string not found in file: ${search}`);
+  for (const search of searches) {
+    const parts = content.split(search);
+
+    if (parts.length === 1) {
+      continue;
+    }
+
+    const updatedContent = parts.join(replace);
+
+    await fs.writeFile(path, updatedContent, 'utf-8');
+    return;
   }
 
-  const updatedContent = parts.join(replace);
-
-  await fs.writeFile(path, updatedContent, 'utf-8');
+  throw new Error(`Search strings not found in file: ${JSON.stringify(searches)}`)
 }
 
 build().catch(console.error);

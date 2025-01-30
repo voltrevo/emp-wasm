@@ -105,8 +105,7 @@ block sampleRandom(int nP, IMultiIO& io, PRG * prg, int party) {
     }
     bool cheat = checkCheat(res2);
     if(cheat) {
-        cout <<"cheat in sampleRandom\n"<<flush;
-        exit(0);
+        throw std::runtime_error("cheat in sampleRandom");
     }
     for(int i = 2; i <= nP; ++i)
         S[1] = S[1] ^ S[i];

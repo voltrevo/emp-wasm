@@ -10,11 +10,11 @@ export default function secureMPC(
   size: number,
   circuit: string,
   input: Uint8Array,
-  inputBitsStart: number,
+  inputBitsPerParty: number[],
   io: IO,
 ): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
-    return nodeSecure2PC(party, size, circuit, input, inputBitsStart, io);
+    return nodeSecure2PC(party, size, circuit, input, inputBitsPerParty, io);
   }
 
   const ev = new EventEmitter<{ cleanup(): void }>();
@@ -32,7 +32,7 @@ export default function secureMPC(
       size,
       circuit,
       input,
-      inputBitsStart,
+      inputBitsPerParty,
     });
 
     worker.onmessage = async (event) => {

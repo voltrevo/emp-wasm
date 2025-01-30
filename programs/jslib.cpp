@@ -171,12 +171,22 @@ std::vector<bool> get_input_bits() {
     return input_bits;
 }
 
-EM_JS(int, get_input_bits_start, (), {
-    if (!Module.emp?.inputBitsStart) {
-        throw new Error("Module.emp.inputBitsStart is not defined in JavaScript.");
+EM_JS(size_t, get_input_bits_per_party, (int i), {
+    if (!Module.emp?.inputBitsPerParty) {
+        throw new Error("Module.emp.inputBitsPerParty is not defined in JavaScript.");
     }
 
-    return Module.emp.inputBitsStart;
+    if (i >= Module.emp.inputBitsPerParty.length) {
+        throw new Error("Index out of bounds for Module.emp.inputBitsPerParty.");
+    }
+
+    const res = Module.emp.inputBitsPerParty[i];
+
+    if (res < 0) {
+        throw new Error("Negative value for Module.emp.inputBitsPerParty.");
+    }
+
+    return res;
 });
 
 EM_JS(void, handle_output_bits_raw, (uint8_t* outputBits, int length), {
@@ -189,6 +199,14 @@ EM_JS(void, handle_output_bits_raw, (uint8_t* outputBits, int length), {
 
     // Call the JavaScript function with the output bits
     Module.emp.handleOutput(outputBitsArray);
+});
+
+EM_JS(void, handle_error, (const char* message), {
+    if (!Module.emp?.handleError) {
+        throw new Error("Module.emp.handleError is not defined in JavaScript.");
+    }
+
+    Module.emp.handleError(new Error(UTF8ToString(message)));
 });
 
 void handle_output_bits(const std::vector<bool>& output_bits) {
@@ -221,49 +239,58 @@ extern "C" {
 }
 
 void run_impl(int party, int nP) {
-    std::cout << "x0" << std::endl;
-    std::shared_ptr<IMultiIO> io = std::make_shared<MultiIOJS>(party, nP);
+    try {
+        std::shared_ptr<IMultiIO> io = std::make_shared<MultiIOJS>(party, nP);
+        auto circuit = get_circuit();
+        auto mpc = CMPC(io, &circuit);
 
-    std::cout << "x0.5" << std::endl;
-    auto circuit = get_circuit();
-    std::cout << "x0.7" << std::endl;
+        mpc.function_independent();
+        mpc.function_dependent();
 
-    auto mpc = CMPC(io, &circuit);
-    std::cout << "x1" << std::endl;
+        std::vector<bool> input_bits = get_input_bits();
 
-    mpc.function_independent();
-    std::cout << "x2" << std::endl;
-    mpc.function_dependent();
-    std::cout << "x3" << std::endl;
+        FlexIn input(nP, circuit.n1 + circuit.n2, party);
 
-    std::vector<bool> input_bits = get_input_bits();
-    int input_bits_start = get_input_bits_start();
+        int bit_pos = 0;
+        for (int p = 0; p < nP; p++) {
+            size_t input_count = get_input_bits_per_party(p);
 
-    FlexIn input(nP, circuit.n1 + circuit.n2, party);
+            if (p + 1 == party) {
+                assert(input_count == input_bits.size());
+            }
 
-    // TODO: Assign party for all input bits
-    for (size_t i = 0; i < input_bits.size(); i++) {
-        size_t x = i + input_bits_start;
-        input.assign_party(x, party);
-        input.assign_plaintext_bit(x, input_bits[i]);
+            for (size_t i = 0; i < input_count; i++) {
+                input.assign_party(bit_pos, p + 1);
+
+                if (p + 1 == party) {
+                    input.assign_plaintext_bit(bit_pos, input_bits[i]);
+                }
+
+                bit_pos++;
+            }
+        }
+
+        assert(bit_pos == circuit.n1 + circuit.n2);
+
+        FlexOut output(nP, circuit.n3, party);
+
+        for (int i = 0; i < circuit.n3; i++) {
+            // All parties receive the output.
+            output.assign_party(i, 0);
+        }
+
+        mpc.online(&input, &output);
+
+        std::vector<bool> output_bits;
+
+        for (int i = 0; i < circuit.n3; i++) {
+            output_bits.push_back(output.get_plaintext_bit(i));
+        }
+
+        handle_output_bits(output_bits);
+    } catch (const std::exception& e) {
+        handle_error(e.what());
     }
-
-    FlexOut output(nP, circuit.n3, party);
-
-    for (int i = 0; i < circuit.n3; i++) {
-        // All parties receive the output.
-        output.assign_party(i, 0);
-    }
-
-    mpc.online(&input, &output);
-
-    std::vector<bool> output_bits;
-
-    for (int i = 0; i < circuit.n3; i++) {
-        output_bits.push_back(output.get_plaintext_bit(i));
-    }
-
-    handle_output_bits(output_bits);
 }
 
 int main() {
