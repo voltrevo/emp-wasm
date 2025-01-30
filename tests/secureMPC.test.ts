@@ -3,17 +3,34 @@ import { BufferQueue, secureMPC } from "../src/ts"
 
 describe('Secure MPC', () => {
   it('3 + 5 == 8', async function () {
-    this.timeout(60_000);
     expect(await internalDemo(3, 5)).to.deep.equal({ alice: 8, bob: 8 });
   });
+
+  it('3 + 5 == 8 (5 parties)', async function () {
+    this.timeout(20_000);
+    expect(await internalDemoN(3, 5, 5)).to.deep.equal([8, 8, 8, 8, 8]);
+  });
 });
+
+class BufferQueueStore {
+  bqs = new Map<string, BufferQueue>();
+
+  get(from: number | string, to: number | string, channel: 'a' | 'b') {
+    const key = `${from}-${to}-${channel}`;
+
+    if (!this.bqs.has(key)) {
+      this.bqs.set(key, new BufferQueue());
+    }
+
+    return this.bqs.get(key)!;
+  }
+}
 
 async function internalDemo(
   aliceInput: number,
   bobInput: number
 ): Promise<{ alice: number, bob: number }> {
-  const aliceBq = { a: new BufferQueue(), b: new BufferQueue() };
-  const bobBq = { a: new BufferQueue(), b: new BufferQueue() };
+  const bqs = new BufferQueueStore();
 
   const [aliceBits, bobBits] = await Promise.all([
     secureMPC(
@@ -25,11 +42,11 @@ async function internalDemo(
       {
         send: (party2, channel, data) => {
           expect(party2).to.equal(1);
-          bobBq[channel].push(data);
+          bqs.get('alice', 'bob', channel).push(data);
         },
-        recv: (party2, channel, len) => {
+        recv: async (party2, channel, len) => {
           expect(party2).to.equal(1);
-          return aliceBq[channel].pop(len);
+          return bqs.get('bob', 'alice', channel).pop(len);
         },
       },
     ),
@@ -42,22 +59,60 @@ async function internalDemo(
       {
         send: (party2, channel, data) => {
           expect(party2).to.equal(0);
-          aliceBq[channel].push(data);
+          bqs.get('bob', 'alice', channel).push(data);
         },
-        recv: (party2, channel, len) => {
+        recv: async (party2, channel, len) => {
           expect(party2).to.equal(0);
-          return bobBq[channel].pop(len);
+          return bqs.get('alice', 'bob', channel).pop(len);
         },
       },
     ),
   ]);
 
-  console.log({ aliceBits, bobBits });
-
   return {
     alice: numberFrom32Bits(aliceBits),
     bob: numberFrom32Bits(bobBits),
   };
+}
+
+async function internalDemoN(
+  p0Input: number,
+  p1Input: number,
+  nParties: number
+): Promise<number[]> {
+  const bqs = new BufferQueueStore();
+
+  const bitsPerParty = new Array(nParties).fill(0);
+  bitsPerParty[0] = 32;
+  bitsPerParty[1] = 32;
+
+  const outputBits = await Promise.all(new Array(nParties).fill(0).map((_0, party) => secureMPC(
+    party,
+    nParties,
+    add32BitCircuit,
+    (() => {
+      if (party === 0) {
+        return numberTo32Bits(p0Input);
+      }
+
+      if (party === 1) {
+        return numberTo32Bits(p1Input);
+      }
+
+      return new Uint8Array(0);
+    })(),
+    bitsPerParty,
+    {
+      send: (party2, channel, data) => {
+        bqs.get(party, party2, channel).push(data);
+      },
+      recv: async (party2, channel, len) => {
+        return bqs.get(party2, party, channel).pop(len);
+      },
+    }
+  )));
+
+  return outputBits.map(bits => numberFrom32Bits(bits));
 }
 
 /**
