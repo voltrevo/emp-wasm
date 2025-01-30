@@ -198,7 +198,7 @@ EM_JS(void, handle_output_bits_raw, (uint8_t* outputBits, int length), {
     const outputBitsArray = new Uint8Array(Module.HEAPU8.buffer, outputBits, length);
 
     // Call the JavaScript function with the output bits
-    Module.emp.handleOutput(outputBitsArray);
+    Module.emp.handleOutput(outputBitsArray.slice());
 });
 
 EM_JS(void, handle_error, (const char* message), {
