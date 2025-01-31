@@ -59,7 +59,6 @@ int main(int argc, char** argv) {
     string res = "";
     for(int i = 0; i < cf.n3; ++i)
         res += (output.get_plaintext_bit(i)?"1":"0");
-    cout << hex_to_binary(string(out3))<<endl;
     cout << res<<endl;
 
     delete mpc;
