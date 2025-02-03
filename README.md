@@ -1,6 +1,6 @@
 # emp-wasm
 
-Wasm build of authenticated garbling from [emp-toolkit/emp-ag2pc](https://github.com/emp-toolkit/emp-ag2pc).
+Wasm build of authenticated garbling from [emp-toolkit/emp-agmpc](https://github.com/emp-toolkit/emp-agmpc).
 
 (If you're not familiar with garbled circuits, you might find [this video](https://www.youtube.com/watch?v=FMZ-HARN0gI) helpful.)
 
@@ -15,7 +15,7 @@ npm install emp-wasm
 ```
 
 ```ts
-import { secure2PC, BufferedIO, IO } from 'emp-wasm';
+import { secureMPC, BufferedIO, IO } from 'emp-wasm';
 
 import circuit from './circuit.ts';
 
@@ -24,17 +24,21 @@ async function main() {
   // for this example
   const io = await makeWebSocketIO('wss://somehow-connect-to-bob');
 
-  const output = await secure2PC(
-    'alice', // use 'bob' in the other client
+  const output = await secureMPC({
+    party: 0, // use 1 in the other client
+    size: 2, // the number of participants
     circuit, // a string defining the circuit, see circuits/*.txt for examples
-    Uint8Array.from([/* 0s and 1s defining your input bits */]),
+    inputBits: Uint8Array.from([/* 0s and 1s defining your input bits */]),
+    inputBitsPerParty: [32, 32], // the number of bits contributed by each participant
     io,
-  );
+    // mode: 'auto', // defaults to auto, but you can force '2pc' mode or 'mpc' mode
+  });
 
   // the output bits from the circuit as a Uint8Array
   console.log(output);
 }
 
+// TODO: Update this (multiple participants, channels)
 async function makeWebSocketIO(url: string) {
   const sock = new WebSocket(url);
   sock.binaryType = 'arraybuffer';
@@ -94,26 +98,26 @@ If you don't want to juggle multiple pages, you can do `await internalDemo(3, 5)
 
 ### `consoleDemo`
 
-Open the url in the console in two tabs and run `consoleDemo('alice', 3)` in one and `consoleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
+Open the url in the console in two tabs and run `consoleDemo(0, 3)` in one and `consoleDemo(1, 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
 
 ### `wsDemo`
 
-Open the url in the console in two tabs and run `await wsDemo('alice', 3)` in one and `await wsDemo('bob', 5)` in the other. This uses a websocket relay included in `npm run demo` and defined in `scripts/relayServer.ts`.
+Open the url in the console in two tabs and run `await wsDemo(0, 3)` in one and `await wsDemo(1, 5)` in the other. This uses a websocket relay included in `npm run demo` and defined in `scripts/relayServer.ts`.
 
 ### `rtcDemo`
 
-Open the url in the console in two tabs and run `await rtcDemo('pair-id', 'alice', 3)` in one and `await rtcDemo('pair-id', 'bob', 5)` in the other. This one uses WebRTC (via [peerjs](https://npmjs.com/package/peerjs)) and should work across networks, locating each other via `pair-id`.
+Open the url in the console in two tabs and run `await rtcDemo('pair-id', 0, 3)` in one and `await rtcDemo('pair-id', 1, 5)` in the other. This one uses WebRTC (via [peerjs](https://npmjs.com/package/peerjs)) and should work across networks, locating each other via `pair-id`.
 
 ## Regular C++ Compile
 
 This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
 
 ```sh
-./scripts/build_2pc_test.sh
-./scripts/2pc_test.sh
+./scripts/build_mpc_test.sh
+./scripts/mpc_test.sh
 ```
 
-This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to Alice that Bob knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.
+This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to the three other participants that Alice (the first party) knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.
 
 Requirements:
 - clang
