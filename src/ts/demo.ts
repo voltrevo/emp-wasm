@@ -4,6 +4,7 @@ import BufferedIO from "./BufferedIO.js";
 import BufferQueue from "./BufferQueue.js";
 import secureMPC from "./secureMPC.js";
 import { IO } from "./types";
+import assert from './assert.js';
 
 // TODO: Uncomment other tests
 
@@ -50,19 +51,23 @@ windowAny.internalDemo = async function(
 }
 
 
-// windowAny.consoleDemo = async function(
-//   party: 'alice' | 'bob',
-//   input: number
-// ): Promise<void> {
-//   const bits = await secure2PC(
-//     party,
-//     add32BitCircuit,
-//     numberTo32Bits(input),
-//     makeCopyPasteIO(),
-//   );
+windowAny.consoleDemo = async function(
+  party: number,
+  input: number,
+): Promise<void> {
+  const otherParty = party === 0 ? 1 : 0;
 
-//   alert(numberFrom32Bits(bits));
-// }
+  const bits = await secureMPC({
+    party,
+    size: 2,
+    circuit: add32BitCircuit,
+    inputBits: numberTo32Bits(input),
+    inputBitsPerParty: [32, 32],
+    io: makeCopyPasteIO(otherParty),
+  });
+
+  alert(numberFrom32Bits(bits));
+}
 
 // windowAny.wsDemo = async function(
 //   party: 'alice' | 'bob',
@@ -231,97 +236,134 @@ function numberFrom32Bits(arr: Uint8Array): number {
   return result;
 }
 
-// /**
-//  * Creates an I/O interface for secure communication using a BufferQueue.
-//  * @returns An object with `send` and `recv` methods for communication.
-//  */
-// function makeCopyPasteIO(): IO {
-//   const bq = new BufferQueue();
+/**
+ * Creates an I/O interface for secure communication using a BufferQueue.
+ * @returns An object with `send` and `recv` methods for communication.
+ */
+function makeCopyPasteIO(otherParty: number): IO {
+  const bq = { a: new BufferQueue(), b: new BufferQueue() };
 
-//   (window as any).write = function (base64: string): void {
-//     const data = decodeBase64(base64);
-//     bq.push(data);
-//   };
+  (window as any).write = function (base64: string): void {
+    const data = decodeBase64(base64);
 
-//   return {
-//     send: makeConsoleSend(),
-//     recv: (len: number) => bq.pop(len),
-//   };
-// }
+    let channel: 'a' | 'b';
 
-// /**
-//  * Creates a function for sending data via console output using Base64 encoding.
-//  * The data is sent in batches to optimize performance.
-//  * @returns A function that takes Uint8Array data and logs it to the console.
-//  */
-// function makeConsoleSend(): (data: Uint8Array) => void {
-//   let buffer: Uint8Array[] = [];
-//   let timer: ReturnType<typeof setTimeout> | null = null;
-//   const TIME_WINDOW = 1_000;
+    if (data[0] === 'a'.charCodeAt(0)) {
+      channel = 'a';
+    } else if (data[0] === 'b'.charCodeAt(0)) {
+      channel = 'b';
+    } else {
+      throw new Error('Invalid channel');
+    }
 
-//   return function (data: Uint8Array): void {
-//     if (!(data instanceof Uint8Array)) {
-//       throw new TypeError('Input must be a Uint8Array');
-//     }
+    bq[channel].push(data.slice(1));
+  };
 
-//     buffer.push(data);
+  return {
+    send: makeConsoleSend(otherParty),
+    recv: (party2, channel, len) => {
+      assert(party2 === otherParty, 'Unexpected party');
+      return bq[channel].pop(len);
+    },
+  };
+}
 
-//     if (!timer) {
-//       timer = setTimeout(() => {
-//         const totalLength = buffer.reduce((acc, arr) => acc + arr.length, 0);
-//         const concatenated = new Uint8Array(totalLength);
-//         let offset = 0;
-//         buffer.forEach(arr => {
-//           concatenated.set(arr, offset);
-//           offset += arr.length;
-//         });
+/**
+ * Creates a function for sending data via console output using Base64 encoding.
+ * The data is sent in batches to optimize performance.
+ * @returns A function that takes Uint8Array data and logs it to the console.
+ */
+function makeConsoleSend(otherParty: number): IO['send'] {
+  let buffer: Uint8Array[] = [];
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const TIME_WINDOW = 1_000;
 
-//         let binary = '';
-//         for (let byte of concatenated) {
-//           binary += String.fromCharCode(byte);
-//         }
+  function currentChannel() {
+    const firstByte = buffer?.[0]?.[0];
 
-//         const base64 = btoa(binary);
-//         console.log(`write('${base64}')`);
+    switch (firstByte) {
+      case 'a'.charCodeAt(0):
+        return 'a';
+      case 'b'.charCodeAt(0):
+        return 'b';
+      default:
+        return undefined;
+    }
+  }
 
-//         buffer = [];
-//         timer = null;
-//       }, TIME_WINDOW);
-//     }
-//   };
-// }
+  function flush() {
+    if (buffer.length === 0) {
+      return;
+    }
 
-// /**
-//  * Decodes a Base64-encoded string into a Uint8Array.
-//  *
-//  * @param base64Str - The Base64-encoded string to decode and process.
-//  * @throws {TypeError} If the input is not a string.
-//  * @throws {Error} If Base64 decoding fails.
-//  * @returns A Uint8Array representing the decoded binary data.
-//  */
-// function decodeBase64(base64Str: string): Uint8Array {
-//   if (typeof base64Str !== 'string') {
-//     throw new TypeError('Input must be a Base64-encoded string');
-//   }
+    const totalLength = buffer.reduce((acc, arr) => acc + arr.length, 0);
+    const concatenated = new Uint8Array(totalLength);
+    let offset = 0;
+    buffer.forEach(arr => {
+      concatenated.set(arr, offset);
+      offset += arr.length;
+    });
 
-//   let decodedArray: Uint8Array;
+    let binary = '';
+    for (let byte of concatenated) {
+      binary += String.fromCharCode(byte);
+    }
 
-//   try {
-//     const binaryStr = atob(base64Str);
-//     const len = binaryStr.length;
-//     decodedArray = new Uint8Array(len);
+    const base64 = btoa(binary);
+    console.log(`write('${base64}')`);
 
-//     for (let i = 0; i < len; i++) {
-//       decodedArray[i] = binaryStr.charCodeAt(i);
-//     }
-//   } catch (error) {
-//     throw new Error(
-//       'Failed to decode Base64 string: ' + (error as Error).message,
-//     );
-//   }
+    buffer = [];
+    timer = null;
+  }
 
-//   return decodedArray;
-// }
+  return function (party2: number, channel: 'a' | 'b', data: Uint8Array): void {
+    assert(party2 === otherParty, 'Unexpected party');
+    assert(data instanceof Uint8Array, 'Input must be a Uint8Array');
+
+    if (currentChannel() !== channel) {
+      flush();
+      buffer.push(new Uint8Array([channel.charCodeAt(0)]));
+    }
+
+    buffer.push(data);
+
+    if (!timer) {
+      timer = setTimeout(flush, TIME_WINDOW);
+    }
+  };
+}
+
+/**
+ * Decodes a Base64-encoded string into a Uint8Array.
+ *
+ * @param base64Str - The Base64-encoded string to decode and process.
+ * @throws {TypeError} If the input is not a string.
+ * @throws {Error} If Base64 decoding fails.
+ * @returns A Uint8Array representing the decoded binary data.
+ */
+function decodeBase64(base64Str: string): Uint8Array {
+  if (typeof base64Str !== 'string') {
+    throw new TypeError('Input must be a Base64-encoded string');
+  }
+
+  let decodedArray: Uint8Array;
+
+  try {
+    const binaryStr = atob(base64Str);
+    const len = binaryStr.length;
+    decodedArray = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      decodedArray[i] = binaryStr.charCodeAt(i);
+    }
+  } catch (error) {
+    throw new Error(
+      'Failed to decode Base64 string: ' + (error as Error).message,
+    );
+  }
+
+  return decodedArray;
+}
 
 const add32BitCircuit = `375 439
 32 32   33
