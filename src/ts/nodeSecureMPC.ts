@@ -6,17 +6,18 @@ import type { IO } from "./types";
  * @param party - The party index joining the computation (0, 1, .. N-1).
  * @param size - The number of parties in the computation.
  * @param circuit - The circuit to run.
- * @param input - The input to the circuit, represented as one bit per byte.
+ * @param inputBits - The input to the circuit, represented as one bit per byte.
+ * @param inputBitsPerParty - The number of input bits for each party.
  * @param io - Input/output channels for communication between the two parties.
  * @returns A promise resolving with the output bits of the circuit.
  */
 export default async function nodeSecureMPC({
-  party, size, circuit, input, inputBitsPerParty, io, mode = 'auto',
+  party, size, circuit, inputBits, inputBitsPerParty, io, mode = 'auto',
 }: {
   party: number,
   size: number,
   circuit: string,
-  input: Uint8Array,
+  inputBits: Uint8Array,
   inputBitsPerParty: number[],
   io: IO,
   mode?: '2pc' | 'mpc' | 'auto',
@@ -29,7 +30,7 @@ export default async function nodeSecureMPC({
 
   const emp: {
     circuit?: string;
-    input?: Uint8Array;
+    inputBits?: Uint8Array;
     inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
@@ -39,7 +40,7 @@ export default async function nodeSecureMPC({
   module.emp = emp;
 
   emp.circuit = circuit;
-  emp.input = input;
+  emp.inputBits = inputBits;
   emp.inputBitsPerParty = inputBitsPerParty;
   emp.io = io;
 

@@ -23,7 +23,7 @@ windowAny.internalDemo = async function(
       party: 0,
       size: 2,
       circuit: add32BitCircuit,
-      input: numberTo32Bits(aliceInput), // TODO: inputBits
+      inputBits: numberTo32Bits(aliceInput),
       inputBitsPerParty: [32, 32],
       io: {
         send: (party2, channel, data) => bobBq[channel].push(data),
@@ -34,7 +34,7 @@ windowAny.internalDemo = async function(
       party: 1,
       size: 2,
       circuit: add32BitCircuit,
-      input: numberTo32Bits(bobInput),
+      inputBits: numberTo32Bits(bobInput),
       inputBitsPerParty: [32, 32],
       io: {
         send: (party2, channel, data) => aliceBq[channel].push(data),

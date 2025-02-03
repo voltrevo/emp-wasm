@@ -19,19 +19,19 @@ const getWorkerUrl = (() => {
 })();
 
 export default function secureMPC({
-  party, size, circuit, input, inputBitsPerParty, io, mode = 'auto',
+  party, size, circuit, inputBits, inputBitsPerParty, io, mode = 'auto',
 }: {
   party: number,
   size: number,
   circuit: string,
-  input: Uint8Array,
+  inputBits: Uint8Array,
   inputBitsPerParty: number[],
   io: IO,
   mode?: '2pc' | 'mpc' | 'auto',
 }): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
     return nodeSecureMPC({
-      party, size, circuit, input, inputBitsPerParty, io, mode,
+      party, size, circuit, inputBits, inputBitsPerParty, io, mode,
     });
   }
 
@@ -49,7 +49,7 @@ export default function secureMPC({
       party,
       size,
       circuit,
-      input,
+      inputBits,
       inputBitsPerParty,
       mode,
     });
