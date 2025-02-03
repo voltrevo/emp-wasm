@@ -141,13 +141,13 @@ emp::BristolFormat get_circuit() {
 }
 
 EM_JS(uint8_t*, get_input_bits_raw, (int* lengthPtr), {
-    if (!Module.emp?.input) {
-        throw new Error("Module.emp.input is not defined in JavaScript.");
+    if (!Module.emp?.inputBits) {
+        throw new Error("Module.emp.inputBits is not defined in JavaScript.");
     }
 
-    const inputBits = Module.emp.input; // Assume this is a Uint8Array
+    const inputBits = Module.emp.inputBits; // Assume this is a Uint8Array
 
-    // Allocate memory for the input array
+    // Allocate memory for the inputBits array
     const bytePtr = Module._js_malloc(inputBits.length);
     Module.HEAPU8.set(inputBits, bytePtr);
 

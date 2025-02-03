@@ -3,7 +3,7 @@ import type { IO } from "./types";
 type Module = {
   emp?: {
     circuit?: string;
-    input?: Uint8Array;
+    inputBits?: Uint8Array;
     inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
@@ -23,17 +23,18 @@ declare const createModule: () => Promise<Module>
  * @param party - The party index joining the computation (0, 1, .. N-1).
  * @param size - The number of parties in the computation.
  * @param circuit - The circuit to run.
- * @param input - The input to the circuit, represented as one bit per byte.
+ * @param inputBits - The input bits for the circuit, represented as one bit per byte.
+ * @param inputBitsPerParty - The number of input bits for each party.
  * @param io - Input/output channels for communication between the two parties.
  * @returns A promise resolving with the output bits of the circuit.
  */
 async function secureMPC({
-  party, size, circuit, input, inputBitsPerParty, io, mode = 'auto',
+  party, size, circuit, inputBits, inputBitsPerParty, io, mode = 'auto',
 }: {
   party: number,
   size: number,
   circuit: string,
-  input: Uint8Array,
+  inputBits: Uint8Array,
   inputBitsPerParty: number[],
   io: IO,
   mode?: '2pc' | 'mpc' | 'auto',
@@ -48,7 +49,7 @@ async function secureMPC({
 
   const emp: {
     circuit?: string;
-    input?: Uint8Array;
+    inputBits?: Uint8Array;
     inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void
@@ -58,7 +59,7 @@ async function secureMPC({
   module.emp = emp;
 
   emp.circuit = circuit;
-  emp.input = input;
+  emp.inputBits = inputBits;
   emp.inputBitsPerParty = inputBitsPerParty;
   emp.io = io;
 
@@ -117,7 +118,7 @@ onmessage = async (event) => {
   const message = event.data;
 
   if (message.type === 'start') {
-    const { party, size, circuit, input, inputBitsPerParty, mode } = message;
+    const { party, size, circuit, inputBits, inputBitsPerParty, mode } = message;
 
     // Create a proxy IO object to communicate with the main thread
     const io: IO = {
@@ -138,7 +139,7 @@ onmessage = async (event) => {
         party,
         size,
         circuit,
-        input,
+        inputBits,
         inputBitsPerParty,
         io,
         mode,

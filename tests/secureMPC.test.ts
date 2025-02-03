@@ -48,7 +48,7 @@ async function internalDemo(
       party: 0,
       size: 2,
       circuit: add32BitCircuit,
-      input: numberTo32Bits(aliceInput),
+      inputBits: numberTo32Bits(aliceInput),
       inputBitsPerParty: [32, 32],
       io: {
         send: (party2, channel, data) => {
@@ -66,7 +66,7 @@ async function internalDemo(
       party: 1,
       size: 2,
       circuit: add32BitCircuit,
-      input: numberTo32Bits(bobInput),
+      inputBits: numberTo32Bits(bobInput),
       inputBitsPerParty: [32, 32],
       io: {
         send: (party2, channel, data) => {
@@ -103,7 +103,7 @@ async function internalDemoN(
     party,
     size,
     circuit: add32BitCircuit,
-    input: (() => {
+    inputBits: (() => {
       if (party === 0) {
         return numberTo32Bits(p0Input);
       }
