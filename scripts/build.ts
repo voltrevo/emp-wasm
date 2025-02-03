@@ -47,24 +47,19 @@ async function build() {
     await getAppendWorkerCode(),
   ].join('\n\n');
 
-  const workerUrl = [
-    'data:text/javascript;base64,',
-    Buffer.from(workerCode).toString('base64'),
-  ].join('');
-
-  let workerSrcCode = await fs.readFile(
-    join(gitRoot, 'dist/src/ts/workerSrc.js'),
+  let workerCodeJs = await fs.readFile(
+    join(gitRoot, 'dist/src/ts/workerCode.js'),
     'utf-8',
   );
 
-  workerSrcCode = workerSrcCode.replace(
-    '<<WORKER_SRC>>',
-    workerUrl,
+  workerCodeJs = workerCodeJs.replace(
+    `'<<WORKER_CODE>>'`,
+    JSON.stringify(workerCode),
   );
 
   await fs.writeFile(
-    join(gitRoot, 'dist/src/ts/workerSrc.js'),
-    workerSrcCode,
+    join(gitRoot, 'dist/src/ts/workerCode.js'),
+    workerCodeJs,
     'utf-8',
   );
 }

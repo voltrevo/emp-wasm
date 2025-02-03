@@ -1,9 +1,22 @@
 import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
-import workerSrc from "./workerSrc.js";
+import workerCode from "./workerCode.js";
 import nodeSecureMPC from "./nodeSecureMPC.js";
 
 export type SecureMPC = typeof secureMPC;
+
+const getWorkerUrl = (() => {
+  let url: string | undefined;
+
+  return () => {
+    if (!url) {
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      url = URL.createObjectURL(blob);
+    }
+
+    return url;
+  }
+})();
 
 export default function secureMPC({
   party, size, circuit, input, inputBitsPerParty, io, mode = 'auto',
@@ -25,7 +38,7 @@ export default function secureMPC({
   const ev = new EventEmitter<{ cleanup(): void }>();
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
-    const worker = new Worker(workerSrc, { type: 'module' });
+    const worker = new Worker(getWorkerUrl(), { type: 'module' });
     ev.on('cleanup', () => worker.terminate());
 
     io.on?.('error', reject);
