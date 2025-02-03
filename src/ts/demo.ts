@@ -6,8 +6,6 @@ import secureMPC from "./secureMPC.js";
 import { IO } from "./types";
 import assert from './assert.js';
 
-// TODO: Uncomment other tests
-
 const windowAny = window as any;
 
 windowAny.secureMPC = secureMPC;
@@ -96,24 +94,28 @@ windowAny.wsDemo = async function(
   return numberFrom32Bits(bits);
 }
 
-// windowAny.rtcDemo = async function(
-//   pairingCode: string,
-//   party: 'alice' | 'bob',
-//   input: number,
-// ): Promise<number> {
-//   const io = await makePeerIO(pairingCode, party);
+windowAny.rtcDemo = async function(
+  pairingCode: string,
+  party: number,
+  input: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
+): Promise<number> {
+  const io = await makePeerIO(pairingCode, party);
 
-//   const bits = await secure2PC(
-//     party,
-//     add32BitCircuit,
-//     numberTo32Bits(input),
-//     io,
-//   );
+  const bits = await secureMPC({
+    party,
+    size: 2,
+    circuit: add32BitCircuit,
+    inputBits: numberTo32Bits(input),
+    inputBitsPerParty: [32, 32],
+    io,
+    mode,
+  });
 
-//   io.close();
+  io.close();
 
-//   return numberFrom32Bits(bits);
-// }
+  return numberFrom32Bits(bits);
+}
 
 async function makeWebSocketIO(url: string, otherParty: number) {
   const sock = new WebSocket(url);
@@ -171,67 +173,77 @@ function channelFromByte(byte: number): 'a' | 'b' {
   }
 }
 
-// async function makePeerIO(pairingCode: string, party: 'alice' | 'bob') {
-//   const peer = new Peer(`emp-wasm-${pairingCode}-${party}`);
+async function makePeerIO(pairingCode: string, party: number) {
+  const otherParty = party === 0 ? 1 : 0;
+  const peer = new Peer(`emp-wasm-${pairingCode}-${party}`);
 
-//   await new Promise((resolve, reject) => {
-//     peer.on('open', resolve);
-//     peer.on('error', reject);
-//   });
+  await new Promise((resolve, reject) => {
+    peer.on('open', resolve);
+    peer.on('error', reject);
+  });
 
-//   let conn: DataConnection;
+  let conn: DataConnection;
 
-//   if (party === 'alice') {
-//     const connPromise = new Promise<DataConnection>(
-//       resolve => peer.on('connection', resolve),
-//     );
+  if (party === 0) {
+    const connPromise = new Promise<DataConnection>(
+      resolve => peer.on('connection', resolve),
+    );
 
-//     const notifyConn = peer.connect(`emp-wasm-${pairingCode}-bob`);
-//     notifyConn.on('open', () => notifyConn.close());
+    const notifyConn = peer.connect(`emp-wasm-${pairingCode}-1`);
+    notifyConn.on('open', () => notifyConn.close());
 
-//     conn = await connPromise;
-//   } else {
-//     conn = peer.connect(`emp-wasm-${pairingCode}-alice`);
+    conn = await connPromise;
+  } else {
+    conn = peer.connect(`emp-wasm-${pairingCode}-0`);
 
-//     await new Promise<void>((resolve, reject) => {
-//       conn.on('open', resolve);
-//       conn.on('error', reject);
+    await new Promise<void>((resolve, reject) => {
+      conn.on('open', resolve);
+      conn.on('error', reject);
 
-//       peer.on('connection', (notifyConn) => {
-//         notifyConn.close();
-//         conn.close();
+      peer.on('connection', (notifyConn) => {
+        notifyConn.close();
+        conn.close();
 
-//         conn = peer.connect(`emp-wasm-${pairingCode}-alice`);
-//         conn.on('open', resolve);
-//         conn.on('error', reject);
-//       });
-//     });
-//   }
+        conn = peer.connect(`emp-wasm-${pairingCode}-0`);
+        conn.on('open', resolve);
+        conn.on('error', reject);
+      });
+    });
+  }
 
-//   const io = new BufferedIO(
-//     (data: Uint8Array) => conn.send(data),
-//     () => peer.destroy(),
-//   );
+  const io = new BufferedIO(
+    otherParty,
+    (party2, channel, data) => {
+      assert(party2 === otherParty, 'Unexpected party');
+      const channelBuf = new Uint8Array(data.length + 1);
+      channelBuf[0] = channel.charCodeAt(0);
+      channelBuf.set(data, 1);
+      conn.send(channelBuf);
+    },
+    () => peer.destroy(),
+  );
 
-//   conn.on('data', (data) => {
-//     let buf: Uint8Array;
+  conn.on('data', (data) => {
+    let channelBuf: Uint8Array;
 
-//     if (data instanceof ArrayBuffer) {
-//       buf = new Uint8Array(data);
-//     } else if (data instanceof Uint8Array) {
-//       buf = data;
-//     } else {
-//       io.emit('error', new Error('Received unrecognized data type'));
-//       return;
-//     }
+    if (data instanceof ArrayBuffer) {
+      channelBuf = new Uint8Array(data);
+    } else if (data instanceof Uint8Array) {
+      channelBuf = data;
+    } else {
+      io.emit('error', new Error('Received unrecognized data type'));
+      return;
+    }
 
-//     io.accept(buf);
-//   });
+    const channel = channelFromByte(channelBuf[0]);
 
-//   conn.on('close', () => io.close());
+    io.accept(channel, channelBuf.slice(1));
+  });
 
-//   return io;
-// }
+  conn.on('close', () => io.close());
+
+  return io;
+}
 
 /**
  * Converts a number into its 32-bit binary representation.
