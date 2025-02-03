@@ -9,7 +9,7 @@ const static int fpre_threads = 1;
 #endif
 
 //#define __debug
-const static char *IP[] = {""
+const static char *IPs[] = {""
 ,    "127.0.0.1"
 ,    "127.0.0.1"
 ,    "127.0.0.1"

@@ -31,10 +31,10 @@ public:
             if(i == party) {
 #ifdef LOCALHOST
                 usleep(1000);
-                a_channels[j].emplace(make_net_io(IP[j], port+2*(i*nP+j)));
+                a_channels[j].emplace(make_net_io(IPs[j], port+2*(i*nP+j)));
 #else
                 usleep(1000);
-                a_channels[j].emplace(make_net_io(IP[j], port+2*(i)));
+                a_channels[j].emplace(make_net_io(IPs[j], port+2*(i)));
 #endif
 
 #ifdef LOCALHOST
@@ -55,10 +55,10 @@ public:
 
 #ifdef LOCALHOST
                 usleep(1000);
-                b_channels[i].emplace(make_net_io(IP[i], port+2*(i*nP+j)+1));
+                b_channels[i].emplace(make_net_io(IPs[i], port+2*(i*nP+j)+1));
 #else
                 usleep(1000);
-                b_channels[i].emplace(make_net_io(IP[i], port+2*(j)+1));
+                b_channels[i].emplace(make_net_io(IPs[i], port+2*(j)+1));
 #endif
             }
         }
