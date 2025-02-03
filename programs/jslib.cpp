@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "emp-tool/io/i_raw_io.h"
+#include "emp-ag2pc/2pc.h"
 #include "emp-agmpc/mpc.h"
 
 void run_2pc_impl(int party, int nP);
@@ -253,7 +254,40 @@ void run_2pc_impl(int party, int nP) {
         throw std::runtime_error("Invalid party number");
     }
 
-    throw std::runtime_error("TODO: 2PC specialization");
+    try {
+        int other_party = (party == 1) ? 2 : 1;
+
+        auto io = emp::IOChannel(std::make_shared<RawIOJS>(other_party, 'a'));
+        auto circuit = get_circuit();
+        std::vector<bool> input_bits = get_input_bits();
+
+        {
+            size_t circuit_input_count = (party == 1) ? circuit.n1 : circuit.n2;
+
+            if (input_bits.size() != circuit_input_count) {
+                throw std::runtime_error("Mismatch between circuit and inputBits");
+            }
+        }
+
+        for (int p = 0; p < 2; p++) {
+            size_t input_count = get_input_bits_per_party(p);
+            size_t circuit_input_count = (p == 0) ? circuit.n1 : circuit.n2;
+
+            if (input_count != circuit_input_count) {
+                throw std::runtime_error("Mismatch between circuit and inputBitsPerParty");
+            }
+        }
+
+        auto twopc = emp::C2PC(io, party, &circuit);
+
+        twopc.function_independent();
+        twopc.function_dependent();
+
+        std::vector<bool> output_bits = twopc.online(input_bits, true);
+        handle_output_bits(output_bits);
+    } catch (const std::exception& e) {
+        handle_error(e.what());
+    }
 }
 
 void run_mpc_impl(int party, int nP) {

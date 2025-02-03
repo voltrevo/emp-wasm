@@ -2,8 +2,18 @@ import { expect } from 'chai';
 import { BufferQueue, secureMPC } from "../src/ts"
 
 describe('Secure MPC', () => {
-  it('3 + 5 == 8', async function () {
-    expect(await internalDemo(3, 5)).to.deep.equal({ alice: 8, bob: 8 });
+  it('3 + 5 == 8 (2pc)', async function () {
+    // Note: This tends to run a bit slower than mpc mode, but that's because
+    // of the cold start. Running mpc first is slower than running 2pc first.
+    expect(await internalDemo(3, 5, '2pc')).to.deep.equal({ alice: 8, bob: 8 });
+  });
+
+  it('3 + 5 == 8 (mpc)', async function () {
+    expect(await internalDemo(3, 5, 'mpc')).to.deep.equal({ alice: 8, bob: 8 });
+  });
+
+  it('3 + 5 == 8 (auto)', async function () {
+    expect(await internalDemo(3, 5, 'auto')).to.deep.equal({ alice: 8, bob: 8 });
   });
 
   it('3 + 5 == 8 (5 parties)', async function () {
@@ -28,7 +38,8 @@ class BufferQueueStore {
 
 async function internalDemo(
   aliceInput: number,
-  bobInput: number
+  bobInput: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
 ): Promise<{ alice: number, bob: number }> {
   const bqs = new BufferQueueStore();
 
@@ -49,7 +60,7 @@ async function internalDemo(
           return bqs.get('bob', 'alice', channel).pop(len);
         },
       },
-      mode: 'mpc', // TODO: omit this (default to 'auto' which does 2pc)
+      mode,
     }),
     secureMPC({
       party: 1,
@@ -67,7 +78,7 @@ async function internalDemo(
           return bqs.get('alice', 'bob', channel).pop(len);
         },
       },
-      mode: 'mpc',
+      mode,
     }),
   ]);
 
