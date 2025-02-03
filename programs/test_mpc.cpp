@@ -3,6 +3,8 @@
 using namespace std;
 using namespace emp;
 
+// TODO: Restore sha256, 4 participants
+
 const string circuit_file_location = "circuits/adder_32bit.txt";;
 static char out3[] = "92b404e556588ced6c1acd4ebf053f6809f73a93";//bafbc2c87c33322603f38e06c3e0f79c1f1b1475";
 
