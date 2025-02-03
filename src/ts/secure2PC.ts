@@ -11,7 +11,7 @@ export default function secure2PC(
   input: Uint8Array,
   io: IO,
 ): Promise<Uint8Array> {
-  if (typeof Worker === 'undefined' || Bun) {
+  if (typeof Worker === 'undefined' || typeof Bun !== 'undefined') {
     return nodeSecure2PC(party, circuit, input, io);
   }
 
