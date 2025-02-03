@@ -14,7 +14,8 @@ windowAny.secureMPC = secureMPC;
 
 windowAny.internalDemo = async function(
   aliceInput: number,
-  bobInput: number
+  bobInput: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
 ): Promise<{ alice: number, bob: number }> {
   const aliceBq = { a: new BufferQueue(), b: new BufferQueue() };
   const bobBq = { a: new BufferQueue(), b: new BufferQueue() };
@@ -30,6 +31,7 @@ windowAny.internalDemo = async function(
         send: (party2, channel, data) => bobBq[channel].push(data),
         recv: (party2, channel, len) => aliceBq[channel].pop(len),
       },
+      mode,
     }),
     secureMPC({
       party: 1,
@@ -41,6 +43,7 @@ windowAny.internalDemo = async function(
         send: (party2, channel, data) => aliceBq[channel].push(data),
         recv: (party2, channel, len) => bobBq[channel].pop(len),
       },
+      mode,
     }),
   ]);
 
@@ -50,10 +53,10 @@ windowAny.internalDemo = async function(
   };
 }
 
-
 windowAny.consoleDemo = async function(
   party: number,
   input: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
 ): Promise<void> {
   const otherParty = party === 0 ? 1 : 0;
 
@@ -64,28 +67,34 @@ windowAny.consoleDemo = async function(
     inputBits: numberTo32Bits(input),
     inputBitsPerParty: [32, 32],
     io: makeCopyPasteIO(otherParty),
+    mode,
   });
 
   alert(numberFrom32Bits(bits));
 }
 
-// windowAny.wsDemo = async function(
-//   party: 'alice' | 'bob',
-//   input: number,
-// ): Promise<number> {
-//   const io = await makeWebSocketIO('ws://localhost:8175/demo');
+windowAny.wsDemo = async function(
+  party: number,
+  input: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
+): Promise<number> {
+  const otherParty = party === 0 ? 1 : 0;
+  const io = await makeWebSocketIO('ws://localhost:8175/demo', otherParty);
 
-//   const bits = await secure2PC(
-//     party,
-//     add32BitCircuit,
-//     numberTo32Bits(input),
-//     io,
-//   );
+  const bits = await secureMPC({
+    party,
+    size: 2,
+    circuit: add32BitCircuit,
+    inputBits: numberTo32Bits(input),
+    inputBitsPerParty: [32, 32],
+    io,
+    mode,
+  });
 
-//   io.close();
+  io.close();
 
-//   return numberFrom32Bits(bits);
-// }
+  return numberFrom32Bits(bits);
+}
 
 // windowAny.rtcDemo = async function(
 //   pairingCode: string,
@@ -106,41 +115,61 @@ windowAny.consoleDemo = async function(
 //   return numberFrom32Bits(bits);
 // }
 
-// async function makeWebSocketIO(url: string) {
-//   const sock = new WebSocket(url);
-//   sock.binaryType = 'arraybuffer';
+async function makeWebSocketIO(url: string, otherParty: number) {
+  const sock = new WebSocket(url);
+  sock.binaryType = 'arraybuffer';
 
-//   await new Promise((resolve, reject) => {
-//     sock.onopen = resolve;
-//     sock.onerror = reject;
-//   });
+  await new Promise((resolve, reject) => {
+    sock.onopen = resolve;
+    sock.onerror = reject;
+  });
 
-//   // You don't have to use BufferedIO, but it's a bit easier to use, otherwise
-//   // you need to implement io.recv(len) returning a promise to exactly len
-//   // bytes
-//   const io = new BufferedIO(
-//     data => sock.send(data),
-//     () => sock.close(),
-//   );
+  // You don't have to use BufferedIO, but it's a bit easier to use, otherwise
+  // you need to implement io.recv(len) returning a promise to exactly len
+  // bytes
+  const io = new BufferedIO(
+    otherParty,
+    (party2, channel, data) => {
+      assert(party2 === otherParty, 'Unexpected party');
+      const channelBuf = new Uint8Array(data.length + 1);
+      channelBuf[0] = channel.charCodeAt(0);
+      channelBuf.set(data, 1);
+      sock.send(channelBuf);
+    },
+    () => sock.close(),
+  );
 
-//   sock.onmessage = (event: MessageEvent) => {
-//     if (!(event.data instanceof ArrayBuffer)) {
-//       console.error('Unrecognized event.data');
-//       return;
-//     }
+  sock.onmessage = (event: MessageEvent) => {
+    if (!(event.data instanceof ArrayBuffer)) {
+      console.error('Unrecognized event.data');
+      return;
+    }
 
-//     // Pass Uint8Arrays to io.accept
-//     io.accept(new Uint8Array(event.data));
-//   };
+    const channelBuf = new Uint8Array(event.data);
+    const channel = channelFromByte(channelBuf[0]);
 
-//   sock.onerror = (e) => {
-//     io.emit('error', new Error(`WebSocket error: ${e}`));
-//   };
+    io.accept(channel, channelBuf.slice(1));
+  };
 
-//   sock.onclose = () => io.close();
+  sock.onerror = (e) => {
+    io.emit('error', new Error(`WebSocket error: ${e}`));
+  };
 
-//   return io;
-// }
+  sock.onclose = () => io.close();
+
+  return io;
+}
+
+function channelFromByte(byte: number): 'a' | 'b' {
+  switch (byte) {
+    case 'a'.charCodeAt(0):
+      return 'a';
+    case 'b'.charCodeAt(0):
+      return 'b';
+    default:
+      throw new Error('Invalid channel');
+  }
+}
 
 // async function makePeerIO(pairingCode: string, party: 'alice' | 'bob') {
 //   const peer = new Peer(`emp-wasm-${pairingCode}-${party}`);
