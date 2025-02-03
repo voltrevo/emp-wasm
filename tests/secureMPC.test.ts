@@ -43,6 +43,11 @@ async function internalDemo(
 ): Promise<{ alice: number, bob: number }> {
   const bqs = new BufferQueueStore();
 
+  let aliceSendBytes = 0;
+  let aliceRecvBytes = 0;
+  let bobSendBytes = 0;
+  let bobRecvBytes = 0;
+
   const [aliceBits, bobBits] = await Promise.all([
     secureMPC({
       party: 0,
@@ -53,10 +58,12 @@ async function internalDemo(
       io: {
         send: (party2, channel, data) => {
           expect(party2).to.equal(1);
+          aliceSendBytes += data.length;
           bqs.get('alice', 'bob', channel).push(data);
         },
         recv: async (party2, channel, len) => {
           expect(party2).to.equal(1);
+          aliceRecvBytes += len;
           return bqs.get('bob', 'alice', channel).pop(len);
         },
       },
@@ -71,16 +78,20 @@ async function internalDemo(
       io: {
         send: (party2, channel, data) => {
           expect(party2).to.equal(0);
+          bobSendBytes += data.length;
           bqs.get('bob', 'alice', channel).push(data);
         },
         recv: async (party2, channel, len) => {
           expect(party2).to.equal(0);
+          bobRecvBytes += len;
           return bqs.get('alice', 'bob', channel).pop(len);
         },
       },
       mode,
     }),
   ]);
+
+  console.log({ mode, aliceSendBytes, aliceRecvBytes, bobSendBytes, bobRecvBytes });
 
   return {
     alice: numberFrom32Bits(aliceBits),
