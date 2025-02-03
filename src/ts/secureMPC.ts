@@ -1,7 +1,7 @@
 import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
 import workerSrc from "./workerSrc.js";
-import nodeSecure2PC from "./nodeSecureMPC.js";
+import nodeSecureMPC from "./nodeSecureMPC.js";
 
 export type SecureMPC = typeof secureMPC;
 
@@ -14,7 +14,7 @@ export default function secureMPC(
   io: IO,
 ): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
-    return nodeSecure2PC(party, size, circuit, input, inputBitsPerParty, io);
+    return nodeSecureMPC(party, size, circuit, input, inputBitsPerParty, io);
   }
 
   const ev = new EventEmitter<{ cleanup(): void }>();

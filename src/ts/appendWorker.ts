@@ -17,13 +17,14 @@ let running = false;
 declare const createModule: () => Promise<Module>
 
 /**
- * Runs a secure two-party computation (2PC) using a specified circuit.
+ * Runs a secure multi-party computation (MPC) using a specified circuit.
  *
- * @param party - The party initiating the computation ('alice' or 'bob').
- * @param circuit - The circuit to run (in this case, a 32-bit addition circuit).
- * @param input - The input to the circuit, represented as a 32-bit binary array.
+ * @param party - The party index joining the computation (0, 1, .. N-1).
+ * @param size - The number of parties in the computation.
+ * @param circuit - The circuit to run.
+ * @param input - The input to the circuit, represented as one bit per byte.
  * @param io - Input/output channels for communication between the two parties.
- * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
+ * @returns A promise resolving with the output bits of the circuit.
  */
 async function secureMPC(
   party: number,
