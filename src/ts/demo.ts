@@ -19,28 +19,28 @@ windowAny.internalDemo = async function(
   const bobBq = { a: new BufferQueue(), b: new BufferQueue() };
 
   const [aliceBits, bobBits] = await Promise.all([
-    secureMPC(
-      0,
-      2,
-      add32BitCircuit,
-      numberTo32Bits(aliceInput),
-      [32, 32],
-      {
+    secureMPC({
+      party: 0,
+      size: 2,
+      circuit: add32BitCircuit,
+      input: numberTo32Bits(aliceInput), // TODO: inputBits
+      inputBitsPerParty: [32, 32],
+      io: {
         send: (party2, channel, data) => bobBq[channel].push(data),
         recv: (party2, channel, len) => aliceBq[channel].pop(len),
       },
-    ),
-    secureMPC(
-      1,
-      2,
-      add32BitCircuit,
-      numberTo32Bits(bobInput),
-      [32, 32],
-      {
+    }),
+    secureMPC({
+      party: 1,
+      size: 2,
+      circuit: add32BitCircuit,
+      input: numberTo32Bits(bobInput),
+      inputBitsPerParty: [32, 32],
+      io: {
         send: (party2, channel, data) => aliceBq[channel].push(data),
         recv: (party2, channel, len) => bobBq[channel].pop(len),
       },
-    ),
+    }),
   ]);
 
   return {

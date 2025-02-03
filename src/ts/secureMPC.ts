@@ -5,16 +5,21 @@ import nodeSecureMPC from "./nodeSecureMPC.js";
 
 export type SecureMPC = typeof secureMPC;
 
-export default function secureMPC(
+export default function secureMPC({
+  party, size, circuit, input, inputBitsPerParty, io, mode = 'auto',
+}: {
   party: number,
   size: number,
   circuit: string,
   input: Uint8Array,
   inputBitsPerParty: number[],
   io: IO,
-): Promise<Uint8Array> {
+  mode?: '2pc' | 'mpc' | 'auto',
+}): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
-    return nodeSecureMPC(party, size, circuit, input, inputBitsPerParty, io);
+    return nodeSecureMPC({
+      party, size, circuit, input, inputBitsPerParty, io, mode,
+    });
   }
 
   const ev = new EventEmitter<{ cleanup(): void }>();
@@ -33,6 +38,7 @@ export default function secureMPC(
       circuit,
       input,
       inputBitsPerParty,
+      mode,
     });
 
     worker.onmessage = async (event) => {

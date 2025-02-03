@@ -7,7 +7,8 @@
 #include "emp-tool/io/i_raw_io.h"
 #include "emp-agmpc/mpc.h"
 
-void run_impl(int party, int nP);
+void run_2pc_impl(int party, int nP);
+void run_mpc_impl(int party, int nP);
 
 // Implement send_js function to send data from C++ to JavaScript
 EM_JS(void, send_js, (int party2, char channel_label, const void* data, size_t len), {
@@ -223,8 +224,13 @@ void handle_output_bits(const std::vector<bool>& output_bits) {
 
 extern "C" {
     EMSCRIPTEN_KEEPALIVE
-    void run(int party, int size) {
-        run_impl(party + 1, size);
+    void run_2pc(int party, int size) {
+        run_2pc_impl(party + 1, size);
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    void run_mpc(int party, int size) {
+        run_mpc_impl(party + 1, size);
     }
 
     EMSCRIPTEN_KEEPALIVE
@@ -238,7 +244,19 @@ extern "C" {
     }
 }
 
-void run_impl(int party, int nP) {
+void run_2pc_impl(int party, int nP) {
+    if (nP != 2) {
+        throw std::runtime_error("2PC only supports 2 parties");
+    }
+
+    if (party != 1 && party != 2) {
+        throw std::runtime_error("Invalid party number");
+    }
+
+    throw std::runtime_error("TODO: 2PC specialization");
+}
+
+void run_mpc_impl(int party, int nP) {
     try {
         std::shared_ptr<IMultiIO> io = std::make_shared<MultiIOJS>(party, nP);
         auto circuit = get_circuit();

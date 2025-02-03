@@ -8,7 +8,8 @@ type Module = {
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
   };
-  _run(party: number, size: number): void;
+  _run_2pc(party: number, size: number): void;
+  _run_mpc(party: number, size: number): void;
   onRuntimeInitialized: () => void;
 };
 
@@ -26,14 +27,17 @@ declare const createModule: () => Promise<Module>
  * @param io - Input/output channels for communication between the two parties.
  * @returns A promise resolving with the output bits of the circuit.
  */
-async function secureMPC(
+async function secureMPC({
+  party, size, circuit, input, inputBitsPerParty, io, mode = 'auto',
+}: {
   party: number,
   size: number,
   circuit: string,
   input: Uint8Array,
   inputBitsPerParty: number[],
   io: IO,
-): Promise<Uint8Array> {
+  mode?: '2pc' | 'mpc' | 'auto',
+}): Promise<Uint8Array> {
   const module = await createModule();
 
   if (running) {
@@ -58,12 +62,14 @@ async function secureMPC(
   emp.inputBitsPerParty = inputBitsPerParty;
   emp.io = io;
 
+  const method = calculateMethod(mode, size, circuit);
+
   const result = new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
       emp.handleError = reject;
 
-      module._run(party, size);
+      module[method](party, size);
     } catch (error) {
       reject(error);
     }
@@ -73,6 +79,28 @@ async function secureMPC(
     return await result;
   } finally {
     running = false;
+  }
+}
+
+function calculateMethod(
+  mode: '2pc' | 'mpc' | 'auto',
+  size: number,
+
+  // Currently unused, but some 2-party circuits might perform better with
+  // _runMPC
+  _circuit: string,
+) {
+  switch (mode) {
+    case '2pc':
+      return '_run_2pc';
+    case 'mpc':
+      return '_run_mpc';
+    case 'auto':
+      return size === 2 ? '_run_2pc' : '_run_mpc';
+
+    default:
+      const _never: never = mode;
+      throw new Error('Unexpected mode: ' + mode);
   }
 }
 
@@ -89,7 +117,7 @@ onmessage = async (event) => {
   const message = event.data;
 
   if (message.type === 'start') {
-    const { party, size, circuit, input, inputBitsPerParty } = message;
+    const { party, size, circuit, input, inputBitsPerParty, mode } = message;
 
     // Create a proxy IO object to communicate with the main thread
     const io: IO = {
@@ -106,7 +134,16 @@ onmessage = async (event) => {
     };
 
     try {
-      const result = await secureMPC(party, size, circuit, input, inputBitsPerParty, io);
+      const result = await secureMPC({
+        party,
+        size,
+        circuit,
+        input,
+        inputBitsPerParty,
+        io,
+        mode,
+      });
+
       postMessage({ type: 'result', result });
     } catch (error) {
       postMessage({ type: 'error', error: (error as Error).message });

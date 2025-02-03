@@ -33,13 +33,13 @@ async function internalDemo(
   const bqs = new BufferQueueStore();
 
   const [aliceBits, bobBits] = await Promise.all([
-    secureMPC(
-      0,
-      2,
-      add32BitCircuit,
-      numberTo32Bits(aliceInput),
-      [32, 32],
-      {
+    secureMPC({
+      party: 0,
+      size: 2,
+      circuit: add32BitCircuit,
+      input: numberTo32Bits(aliceInput),
+      inputBitsPerParty: [32, 32],
+      io: {
         send: (party2, channel, data) => {
           expect(party2).to.equal(1);
           bqs.get('alice', 'bob', channel).push(data);
@@ -49,14 +49,15 @@ async function internalDemo(
           return bqs.get('bob', 'alice', channel).pop(len);
         },
       },
-    ),
-    secureMPC(
-      1,
-      2,
-      add32BitCircuit,
-      numberTo32Bits(bobInput),
-      [32, 32],
-      {
+      mode: 'mpc', // TODO: omit this (default to 'auto' which does 2pc)
+    }),
+    secureMPC({
+      party: 1,
+      size: 2,
+      circuit: add32BitCircuit,
+      input: numberTo32Bits(bobInput),
+      inputBitsPerParty: [32, 32],
+      io: {
         send: (party2, channel, data) => {
           expect(party2).to.equal(0);
           bqs.get('bob', 'alice', channel).push(data);
@@ -66,7 +67,8 @@ async function internalDemo(
           return bqs.get('alice', 'bob', channel).pop(len);
         },
       },
-    ),
+      mode: 'mpc',
+    }),
   ]);
 
   return {
@@ -78,19 +80,19 @@ async function internalDemo(
 async function internalDemoN(
   p0Input: number,
   p1Input: number,
-  nParties: number
+  size: number
 ): Promise<number[]> {
   const bqs = new BufferQueueStore();
 
-  const bitsPerParty = new Array(nParties).fill(0);
-  bitsPerParty[0] = 32;
-  bitsPerParty[1] = 32;
+  const inputBitsPerParty = new Array(size).fill(0);
+  inputBitsPerParty[0] = 32;
+  inputBitsPerParty[1] = 32;
 
-  const outputBits = await Promise.all(new Array(nParties).fill(0).map((_0, party) => secureMPC(
+  const outputBits = await Promise.all(new Array(size).fill(0).map((_0, party) => secureMPC({
     party,
-    nParties,
-    add32BitCircuit,
-    (() => {
+    size,
+    circuit: add32BitCircuit,
+    input: (() => {
       if (party === 0) {
         return numberTo32Bits(p0Input);
       }
@@ -101,8 +103,8 @@ async function internalDemoN(
 
       return new Uint8Array(0);
     })(),
-    bitsPerParty,
-    {
+    inputBitsPerParty,
+    io: {
       send: (party2, channel, data) => {
         bqs.get(party, party2, channel).push(data);
       },
@@ -110,7 +112,7 @@ async function internalDemoN(
         return bqs.get(party2, party, channel).pop(len);
       },
     }
-  )));
+  })));
 
   return outputBits.map(bits => numberFrom32Bits(bits));
 }
