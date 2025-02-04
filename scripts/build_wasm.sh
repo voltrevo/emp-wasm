@@ -20,7 +20,7 @@ CONDITIONAL_OPTS=""
 if [ "$ARG1" == "" ]; then
   CONDITIONAL_OPTS="-O3"
 elif [ "$ARG1" == "debug" ]; then
-  CONDITIONAL_OPTS="-g" # FIXME: want -D__debug but it doesn't work
+  CONDITIONAL_OPTS="-g -D__debug"
 else
   echo "Invalid argument"
   exit 1
