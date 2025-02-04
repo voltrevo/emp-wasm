@@ -59,13 +59,13 @@ export default function secureMPC({
 
       if (message.type === 'io_send') {
         // Forward the send request to the main thread's io.send
-        const { party2, channel, data } = message;
-        io.send(party2, channel, data);
+        const { toParty, channel, data } = message;
+        io.send(toParty, channel, data);
       } else if (message.type === 'io_recv') {
-        const { party2, channel, len } = message;
+        const { fromParty, channel, len } = message;
         // Handle the recv request from the worker
         try {
-          const data = await io.recv(party2, channel, len);
+          const data = await io.recv(fromParty, channel, len);
           worker.postMessage({ type: 'io_recv_response', id: message.id, data });
         } catch (error) {
           worker.postMessage({

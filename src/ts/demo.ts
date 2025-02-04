@@ -26,8 +26,8 @@ windowAny.internalDemo = async function(
       inputBits: numberTo32Bits(aliceInput),
       inputBitsPerParty: [32, 32],
       io: {
-        send: (party2, channel, data) => bobBq[channel].push(data),
-        recv: (party2, channel, len) => aliceBq[channel].pop(len),
+        send: (toParty, channel, data) => bobBq[channel].push(data),
+        recv: (fromParty, channel, len) => aliceBq[channel].pop(len),
       },
       mode,
     }),
@@ -38,8 +38,8 @@ windowAny.internalDemo = async function(
       inputBits: numberTo32Bits(bobInput),
       inputBitsPerParty: [32, 32],
       io: {
-        send: (party2, channel, data) => aliceBq[channel].push(data),
-        recv: (party2, channel, len) => bobBq[channel].pop(len),
+        send: (toParty, channel, data) => aliceBq[channel].push(data),
+        recv: (fromParty, channel, len) => bobBq[channel].pop(len),
       },
       mode,
     }),
@@ -67,8 +67,8 @@ windowAny.internalDemo3 = async function(
     inputBits: numberTo32Bits(inputs[party]),
     inputBitsPerParty: [32, 32, 32],
     io: {
-      send: (party2, channel, data) => bqs.get(party, party2, channel).push(data),
-      recv: (party2, channel, len) => bqs.get(party2, party, channel).pop(len),
+      send: (toParty, channel, data) => bqs.get(party, toParty, channel).push(data),
+      recv: (fromParty, channel, len) => bqs.get(fromParty, party, channel).pop(len),
     },
     mode,
   })));
@@ -160,8 +160,8 @@ async function makeWebSocketIO(url: string, otherParty: number) {
   // bytes
   const io = new BufferedIO(
     otherParty,
-    (party2, channel, data) => {
-      assert(party2 === otherParty, 'Unexpected party');
+    (toParty, channel, data) => {
+      assert(toParty === otherParty, 'Unexpected party');
       const channelBuf = new Uint8Array(data.length + 1);
       channelBuf[0] = channel.charCodeAt(0);
       channelBuf.set(data, 1);
@@ -242,8 +242,8 @@ async function makePeerIO(pairingCode: string, party: number) {
 
   const io = new BufferedIO(
     otherParty,
-    (party2, channel, data) => {
-      assert(party2 === otherParty, 'Unexpected party');
+    (toParty, channel, data) => {
+      assert(toParty === otherParty, 'Unexpected party');
       const channelBuf = new Uint8Array(data.length + 1);
       channelBuf[0] = channel.charCodeAt(0);
       channelBuf.set(data, 1);
@@ -345,8 +345,8 @@ function makeCopyPasteIO(otherParty: number): IO {
 
   return {
     send: makeConsoleSend(otherParty),
-    recv: (party2, channel, len) => {
-      assert(party2 === otherParty, 'Unexpected party');
+    recv: (fromParty, channel, len) => {
+      assert(fromParty === otherParty, 'Unexpected party');
       return bq[channel].pop(len);
     },
   };
@@ -400,8 +400,8 @@ function makeConsoleSend(otherParty: number): IO['send'] {
     timer = null;
   }
 
-  return function (party2: number, channel: 'a' | 'b', data: Uint8Array): void {
-    assert(party2 === otherParty, 'Unexpected party');
+  return function (toParty: number, channel: 'a' | 'b', data: Uint8Array): void {
+    assert(toParty === otherParty, 'Unexpected party');
     assert(data instanceof Uint8Array, 'Input must be a Uint8Array');
 
     if (currentChannel() !== channel) {

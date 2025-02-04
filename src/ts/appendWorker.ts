@@ -122,14 +122,14 @@ onmessage = async (event) => {
 
     // Create a proxy IO object to communicate with the main thread
     const io: IO = {
-      send: (party2, channel, data) => {
-        postMessage({ type: 'io_send', party2, channel, data });
+      send: (toParty, channel, data) => {
+        postMessage({ type: 'io_send', toParty, channel, data });
       },
-      recv: (party2, channel, len) => {
+      recv: (fromParty, channel, len) => {
         return new Promise((resolve, reject) => {
           const id = requestId++;
           pendingRequests[id] = { resolve, reject };
-          postMessage({ type: 'io_recv', party2, channel, len, id });
+          postMessage({ type: 'io_recv', fromParty, channel, len, id });
         });
       },
     };

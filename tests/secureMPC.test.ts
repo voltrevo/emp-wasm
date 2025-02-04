@@ -51,12 +51,12 @@ async function internalDemo(
       inputBits: numberTo32Bits(aliceInput),
       inputBitsPerParty: [32, 32],
       io: {
-        send: (party2, channel, data) => {
-          expect(party2).to.equal(1);
+        send: (toParty, channel, data) => {
+          expect(toParty).to.equal(1);
           bqs.get('alice', 'bob', channel).push(data);
         },
-        recv: async (party2, channel, len) => {
-          expect(party2).to.equal(1);
+        recv: async (fromParty, channel, len) => {
+          expect(fromParty).to.equal(1);
           return bqs.get('bob', 'alice', channel).pop(len);
         },
       },
@@ -69,12 +69,12 @@ async function internalDemo(
       inputBits: numberTo32Bits(bobInput),
       inputBitsPerParty: [32, 32],
       io: {
-        send: (party2, channel, data) => {
-          expect(party2).to.equal(0);
+        send: (toParty, channel, data) => {
+          expect(toParty).to.equal(0);
           bqs.get('bob', 'alice', channel).push(data);
         },
-        recv: async (party2, channel, len) => {
-          expect(party2).to.equal(0);
+        recv: async (fromParty, channel, len) => {
+          expect(fromParty).to.equal(0);
           return bqs.get('alice', 'bob', channel).pop(len);
         },
       },
@@ -116,11 +116,11 @@ async function internalDemoN(
     })(),
     inputBitsPerParty,
     io: {
-      send: (party2, channel, data) => {
-        bqs.get(party, party2, channel).push(data);
+      send: (toParty, channel, data) => {
+        bqs.get(party, toParty, channel).push(data);
       },
-      recv: async (party2, channel, len) => {
-        return bqs.get(party2, party, channel).pop(len);
+      recv: async (fromParty, channel, len) => {
+        return bqs.get(fromParty, party, channel).pop(len);
       },
     }
   })));

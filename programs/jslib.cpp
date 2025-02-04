@@ -12,7 +12,7 @@ void run_2pc_impl(int party, int nP);
 void run_mpc_impl(int party, int nP);
 
 // Implement send_js function to send data from C++ to JavaScript
-EM_JS(void, send_js, (int party2, char channel_label, const void* data, size_t len), {
+EM_JS(void, send_js, (int to_party, char channel_label, const void* data, size_t len), {
     if (!Module.emp?.io?.send) {
         throw new Error("Module.emp.io.send is not defined in JavaScript.");
     }
@@ -20,18 +20,18 @@ EM_JS(void, send_js, (int party2, char channel_label, const void* data, size_t l
     // Copy data from WebAssembly memory to a JavaScript Uint8Array
     const dataArray = HEAPU8.slice(data, data + len);
 
-    Module.emp.io.send(party2 - 1, String.fromCharCode(channel_label), dataArray);
+    Module.emp.io.send(to_party - 1, String.fromCharCode(channel_label), dataArray);
 });
 
 // Implement recv_js function to receive data from JavaScript to C++
-EM_ASYNC_JS(void, recv_js, (int party2, char channel_label, void* data, size_t len), {
+EM_ASYNC_JS(void, recv_js, (int from_party, char channel_label, void* data, size_t len), {
     if (!Module.emp?.io?.recv) {
         reject(new Error("Module.emp.io.recv is not defined in JavaScript."));
         return;
     }
 
     // Wait for data from JavaScript
-    const dataArray = await Module.emp.io.recv(party2 - 1, String.fromCharCode(channel_label), len);
+    const dataArray = await Module.emp.io.recv(from_party - 1, String.fromCharCode(channel_label), len);
 
     // Copy data from JavaScript Uint8Array to WebAssembly memory
     HEAPU8.set(dataArray, data);
@@ -39,23 +39,23 @@ EM_ASYNC_JS(void, recv_js, (int party2, char channel_label, void* data, size_t l
 
 class RawIOJS : public IRawIO {
 public:
-    int party2;
+    int other_party;
     char channel_label;
 
     RawIOJS(
-        int party2,
+        int other_party,
         char channel_label
     ):
-        party2(party2),
+        other_party(other_party),
         channel_label(channel_label)
     {}
 
     void send(const void* data, size_t len) override {
-        send_js(party2, channel_label, data, len);
+        send_js(other_party, channel_label, data, len);
     }
 
     void recv(void* data, size_t len) override {
-        recv_js(party2, channel_label, data, len);
+        recv_js(other_party, channel_label, data, len);
     }
 
     void flush() override {
@@ -86,18 +86,18 @@ public:
         return mParty;
     }
 
-    emp::IOChannel& a_channel(int party2) override {
-        assert(party2 != 0);
-        assert(party2 != party());
+    emp::IOChannel& a_channel(int other_party) override {
+        assert(other_party != 0);
+        assert(other_party != party());
 
-        return a_channels[party2];
+        return a_channels[other_party];
     }
 
-    emp::IOChannel& b_channel(int party2) override {
-        assert(party2 != 0);
-        assert(party2 != party());
+    emp::IOChannel& b_channel(int other_party) override {
+        assert(other_party != 0);
+        assert(other_party != party());
 
-        return b_channels[party2];
+        return b_channels[other_party];
     }
 
     void flush(int idx) override {

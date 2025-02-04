@@ -27,8 +27,8 @@ export default class BufferedIO
     this.closeOther?.();
   }
 
-  async recv(party2: number, channel: 'a' | 'b', len: number): Promise<Uint8Array> {
-    assert(party2 === this.otherParty, 'party2 !== this.otherParty');
+  async recv(fromParty: number, channel: 'a' | 'b', len: number): Promise<Uint8Array> {
+    assert(fromParty === this.otherParty, 'fromParty !== this.otherParty');
     return await this.bq[channel].pop(len);
   }
 
