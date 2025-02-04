@@ -17,7 +17,7 @@ namespace emp {
 template<typename T>
 void inline delete_array_null(T * ptr);
 
-inline void error(const char * s, int line = 0, const char * file = nullptr);
+inline void error(const char * s);
 
 template<class... Ts>
 void run_function(void *function, const Ts&... args);

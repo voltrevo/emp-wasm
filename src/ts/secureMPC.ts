@@ -1,24 +1,44 @@
 import { EventEmitter } from "ee-typed";
 import type { IO } from "./types";
-import workerSrc from "./workerSrc.js";
-import nodeSecure2PC from "./nodeSecure2PC.js";
+import workerCode from "./workerCode.js";
+import nodeSecureMPC from "./nodeSecureMPC.js";
 
-export type Secure2PC = typeof secure2PC;
+export type SecureMPC = typeof secureMPC;
 
-export default function secure2PC(
-  party: 'alice' | 'bob',
+const getWorkerUrl = (() => {
+  let url: string | undefined;
+
+  return () => {
+    if (!url) {
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      url = URL.createObjectURL(blob);
+    }
+
+    return url;
+  }
+})();
+
+export default function secureMPC({
+  party, size, circuit, inputBits, inputBitsPerParty, io, mode = 'auto',
+}: {
+  party: number,
+  size: number,
   circuit: string,
-  input: Uint8Array,
+  inputBits: Uint8Array,
+  inputBitsPerParty: number[],
   io: IO,
-): Promise<Uint8Array> {
+  mode?: '2pc' | 'mpc' | 'auto',
+}): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
-    return nodeSecure2PC(party, circuit, input, io);
+    return nodeSecureMPC({
+      party, size, circuit, inputBits, inputBitsPerParty, io, mode,
+    });
   }
 
   const ev = new EventEmitter<{ cleanup(): void }>();
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
-    const worker = new Worker(workerSrc, { type: 'module' });
+    const worker = new Worker(getWorkerUrl(), { type: 'module' });
     ev.on('cleanup', () => worker.terminate());
 
     io.on?.('error', reject);
@@ -27,8 +47,11 @@ export default function secure2PC(
     worker.postMessage({
       type: 'start',
       party,
+      size,
       circuit,
-      input,
+      inputBits,
+      inputBitsPerParty,
+      mode,
     });
 
     worker.onmessage = async (event) => {
@@ -36,11 +59,13 @@ export default function secure2PC(
 
       if (message.type === 'io_send') {
         // Forward the send request to the main thread's io.send
-        io.send(message.data);
+        const { toParty, channel, data } = message;
+        io.send(toParty, channel, data);
       } else if (message.type === 'io_recv') {
+        const { fromParty, channel, len } = message;
         // Handle the recv request from the worker
         try {
-          const data = await io.recv(message.len);
+          const data = await io.recv(fromParty, channel, len);
           worker.postMessage({ type: 'io_recv_response', id: message.id, data });
         } catch (error) {
           worker.postMessage({

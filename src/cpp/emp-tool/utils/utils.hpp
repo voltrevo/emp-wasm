@@ -19,12 +19,8 @@ inline double time_from(const time_point<high_resolution_clock>& s) {
     return std::chrono::duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - s).count();
 }
 
-inline void error(const char * s, int line, const char * file) {
-    fprintf(stderr, s, "\n");
-    if(file != nullptr) {
-        fprintf(stderr, "at %d, %s\n", line, file);
-    }
-    exit(1);
+inline void error(const char * s) {
+    throw std::runtime_error(s);
 }
 
 inline void parse_party_and_port(const char *const * arg, int * party, int * port) {

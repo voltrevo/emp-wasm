@@ -47,24 +47,19 @@ async function build() {
     await getAppendWorkerCode(),
   ].join('\n\n');
 
-  const workerUrl = [
-    'data:text/javascript;base64,',
-    Buffer.from(workerCode).toString('base64'),
-  ].join('');
-
-  let workerSrcCode = await fs.readFile(
-    join(gitRoot, 'dist/src/ts/workerSrc.js'),
+  let workerCodeJs = await fs.readFile(
+    join(gitRoot, 'dist/src/ts/workerCode.js'),
     'utf-8',
   );
 
-  workerSrcCode = workerSrcCode.replace(
-    '<<WORKER_SRC>>',
-    workerUrl,
+  workerCodeJs = workerCodeJs.replace(
+    `'<<WORKER_CODE>>'`,
+    JSON.stringify(workerCode),
   );
 
   await fs.writeFile(
-    join(gitRoot, 'dist/src/ts/workerSrc.js'),
-    workerSrcCode,
+    join(gitRoot, 'dist/src/ts/workerCode.js'),
+    workerCodeJs,
     'utf-8',
   );
 }
@@ -110,25 +105,38 @@ async function shell(cmd: string, args: string[], cwd: string): Promise<void> {
 async function fixEmscriptenCode(gitRoot: string) {
   await replaceInFile(
     join(gitRoot, 'build/jslib.js'),
-    'var fs=require("fs")',
+    ['var fs=require("fs")', "var fs = require('fs')"],
     // This doesn't really affect behavior, but it fixes a nextjs issue where
     // it analyzes the require statically and fails even when the code works as
     // a whole.
     'var fs=(()=>{try{return require("fs")}catch(e){throw e}})();'
   );
+
+  // For deno compatibility
+  await replaceInFile(
+    join(gitRoot, 'build/jslib.js'),
+    ['import("module")', "import('module')"],
+    'import("node:module")',
+  );
 }
 
-async function replaceInFile(path: string, search: string, replace: string) {
+async function replaceInFile(path: string, searches: string[], replace: string) {
   const content = await fs.readFile(path, 'utf-8');
-  const parts = content.split(search);
 
-  if (parts.length === 1) {
-    throw new Error(`Search string not found in file: ${search}`);
+  for (const search of searches) {
+    const parts = content.split(search);
+
+    if (parts.length === 1) {
+      continue;
+    }
+
+    const updatedContent = parts.join(replace);
+
+    await fs.writeFile(path, updatedContent, 'utf-8');
+    return;
   }
 
-  const updatedContent = parts.join(replace);
-
-  await fs.writeFile(path, updatedContent, 'utf-8');
+  throw new Error(`Search strings not found in file: ${JSON.stringify(searches)}`)
 }
 
 build().catch(console.error);

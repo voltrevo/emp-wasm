@@ -3,11 +3,13 @@ import type { IO } from "./types";
 type Module = {
   emp?: {
     circuit?: string;
-    input?: Uint8Array;
+    inputBits?: Uint8Array;
+    inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
   };
-  _run(party: number): void;
+  _run_2pc(party: number, size: number): void;
+  _run_mpc(party: number, size: number): void;
   onRuntimeInitialized: () => void;
 };
 
@@ -16,47 +18,59 @@ let running = false;
 declare const createModule: () => Promise<Module>
 
 /**
- * Runs a secure two-party computation (2PC) using a specified circuit.
+ * Runs a secure multi-party computation (MPC) using a specified circuit.
  *
- * @param party - The party initiating the computation ('alice' or 'bob').
- * @param circuit - The circuit to run (in this case, a 32-bit addition circuit).
- * @param input - The input to the circuit, represented as a 32-bit binary array.
+ * @param party - The party index joining the computation (0, 1, .. N-1).
+ * @param size - The number of parties in the computation.
+ * @param circuit - The circuit to run.
+ * @param inputBits - The input bits for the circuit, represented as one bit per byte.
+ * @param inputBitsPerParty - The number of input bits for each party.
  * @param io - Input/output channels for communication between the two parties.
- * @returns A promise resolving with the output of the circuit (a 32-bit binary array).
+ * @returns A promise resolving with the output bits of the circuit.
  */
-async function secure2PC(
-  party: 'alice' | 'bob',
+async function secureMPC({
+  party, size, circuit, inputBits, inputBitsPerParty, io, mode = 'auto',
+}: {
+  party: number,
+  size: number,
   circuit: string,
-  input: Uint8Array,
+  inputBits: Uint8Array,
+  inputBitsPerParty: number[],
   io: IO,
-): Promise<Uint8Array> {
+  mode?: '2pc' | 'mpc' | 'auto',
+}): Promise<Uint8Array> {
   const module = await createModule();
 
   if (running) {
-    throw new Error('Can only run one secure2PC at a time');
+    throw new Error('Can only run one secureMPC at a time');
   }
 
   running = true;
 
-  const emp: { 
-    circuit?: string; 
-    input?: Uint8Array; 
-    io?: IO; 
-    handleOutput?: (value: Uint8Array) => void 
+  const emp: {
+    circuit?: string;
+    inputBits?: Uint8Array;
+    inputBitsPerParty?: number[];
+    io?: IO;
+    handleOutput?: (value: Uint8Array) => void
+    handleError?: (error: Error) => void;
   } = {};
-  
+
   module.emp = emp;
 
   emp.circuit = circuit;
-  emp.input = input;
+  emp.inputBits = inputBits;
+  emp.inputBitsPerParty = inputBitsPerParty;
   emp.io = io;
+
+  const method = calculateMethod(mode, size, circuit);
 
   const result = new Promise<Uint8Array>((resolve, reject) => {
     try {
       emp.handleOutput = resolve;
-      // TODO: emp.handleError
+      emp.handleError = reject;
 
-      module._run(partyToIndex(party));
+      module[method](party, size);
     } catch (error) {
       reject(error);
     }
@@ -69,23 +83,26 @@ async function secure2PC(
   }
 }
 
-/**
- * Maps a party ('alice' or 'bob') to an index number.
- *
- * @param party - The party ('alice' or 'bob').
- * @returns 1 for 'alice', 2 for 'bob'.
- * @throws Will throw an error if the party is invalid.
- */
-function partyToIndex(party: 'alice' | 'bob'): number {
-  if (party === 'alice') {
-    return 1;
+function calculateMethod(
+  mode: '2pc' | 'mpc' | 'auto',
+  size: number,
+
+  // Currently unused, but some 2-party circuits might perform better with
+  // _runMPC
+  _circuit: string,
+) {
+  switch (mode) {
+    case '2pc':
+      return '_run_2pc';
+    case 'mpc':
+      return '_run_mpc';
+    case 'auto':
+      return size === 2 ? '_run_2pc' : '_run_mpc';
+
+    default:
+      const _never: never = mode;
+      throw new Error('Unexpected mode: ' + mode);
   }
-  
-  if (party === 'bob') {
-    return 2;
-  }
-  
-  throw new Error(`Invalid party ${party} (must be 'alice' or 'bob')`);
 }
 
 let requestId = 0;
@@ -101,24 +118,33 @@ onmessage = async (event) => {
   const message = event.data;
 
   if (message.type === 'start') {
-    const { party, circuit, input } = message;
+    const { party, size, circuit, inputBits, inputBitsPerParty, mode } = message;
 
     // Create a proxy IO object to communicate with the main thread
     const io: IO = {
-      send: (data) => {
-        postMessage({ type: 'io_send', data });
+      send: (toParty, channel, data) => {
+        postMessage({ type: 'io_send', toParty, channel, data });
       },
-      recv: (len) => {
+      recv: (fromParty, channel, len) => {
         return new Promise((resolve, reject) => {
           const id = requestId++;
           pendingRequests[id] = { resolve, reject };
-          postMessage({ type: 'io_recv', len, id });
+          postMessage({ type: 'io_recv', fromParty, channel, len, id });
         });
       },
     };
 
     try {
-      const result = await secure2PC(party, circuit, input, io);
+      const result = await secureMPC({
+        party,
+        size,
+        circuit,
+        inputBits,
+        inputBitsPerParty,
+        io,
+        mode,
+      });
+
       postMessage({ type: 'result', result });
     } catch (error) {
       postMessage({ type: 'error', error: (error as Error).message });

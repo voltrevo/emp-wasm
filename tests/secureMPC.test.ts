@@ -1,44 +1,131 @@
 import { expect } from 'chai';
-import { BufferQueue, secure2PC } from "../src/ts"
+import { BufferQueue, secureMPC } from "../src/ts"
 
-describe('Secure 2PC', () => {
-  it('3 + 5 == 8', async () => {
-    expect(await internalDemo(3, 5)).to.deep.equal({ alice: 8, bob: 8 });
+describe('Secure MPC', () => {
+  it('3 + 5 == 8 (2pc)', async function () {
+    // Note: This tends to run a bit slower than mpc mode, but that's because
+    // of the cold start. Running mpc first is slower than running 2pc first.
+    expect(await internalDemo(3, 5, '2pc')).to.deep.equal({ alice: 8, bob: 8 });
+  });
+
+  it('3 + 5 == 8 (mpc)', async function () {
+    expect(await internalDemo(3, 5, 'mpc')).to.deep.equal({ alice: 8, bob: 8 });
+  });
+
+  it('3 + 5 == 8 (auto)', async function () {
+    expect(await internalDemo(3, 5, 'auto')).to.deep.equal({ alice: 8, bob: 8 });
+  });
+
+  it('3 + 5 == 8 (5 parties)', async function () {
+    this.timeout(20_000);
+    expect(await internalDemoN(3, 5, 5)).to.deep.equal([8, 8, 8, 8, 8]);
   });
 });
 
+class BufferQueueStore {
+  bqs = new Map<string, BufferQueue>();
+
+  get(from: number | string, to: number | string, channel: 'a' | 'b') {
+    const key = `${from}-${to}-${channel}`;
+
+    if (!this.bqs.has(key)) {
+      this.bqs.set(key, new BufferQueue());
+    }
+
+    return this.bqs.get(key)!;
+  }
+}
+
 async function internalDemo(
   aliceInput: number,
-  bobInput: number
+  bobInput: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
 ): Promise<{ alice: number, bob: number }> {
-  const aliceBq = new BufferQueue();
-  const bobBq = new BufferQueue();
+  const bqs = new BufferQueueStore();
 
   const [aliceBits, bobBits] = await Promise.all([
-    secure2PC(
-      'alice',
-      add32BitCircuit,
-      numberTo32Bits(aliceInput),
-      {
-        send: data => bobBq.push(data),
-        recv: len => aliceBq.pop(len),
+    secureMPC({
+      party: 0,
+      size: 2,
+      circuit: add32BitCircuit,
+      inputBits: numberTo32Bits(aliceInput),
+      inputBitsPerParty: [32, 32],
+      io: {
+        send: (toParty, channel, data) => {
+          expect(toParty).to.equal(1);
+          bqs.get('alice', 'bob', channel).push(data);
+        },
+        recv: async (fromParty, channel, len) => {
+          expect(fromParty).to.equal(1);
+          return bqs.get('bob', 'alice', channel).pop(len);
+        },
       },
-    ),
-    secure2PC(
-      'bob',
-      add32BitCircuit,
-      numberTo32Bits(bobInput),
-      {
-        send: data => aliceBq.push(data),
-        recv: len => bobBq.pop(len),
+      mode,
+    }),
+    secureMPC({
+      party: 1,
+      size: 2,
+      circuit: add32BitCircuit,
+      inputBits: numberTo32Bits(bobInput),
+      inputBitsPerParty: [32, 32],
+      io: {
+        send: (toParty, channel, data) => {
+          expect(toParty).to.equal(0);
+          bqs.get('bob', 'alice', channel).push(data);
+        },
+        recv: async (fromParty, channel, len) => {
+          expect(fromParty).to.equal(0);
+          return bqs.get('alice', 'bob', channel).pop(len);
+        },
       },
-    ),
+      mode,
+    }),
   ]);
 
   return {
     alice: numberFrom32Bits(aliceBits),
     bob: numberFrom32Bits(bobBits),
   };
+}
+
+async function internalDemoN(
+  p0Input: number,
+  p1Input: number,
+  size: number
+): Promise<number[]> {
+  const bqs = new BufferQueueStore();
+
+  const inputBitsPerParty = new Array(size).fill(0);
+  inputBitsPerParty[0] = 32;
+  inputBitsPerParty[1] = 32;
+
+  const outputBits = await Promise.all(new Array(size).fill(0).map((_0, party) => secureMPC({
+    party,
+    size,
+    circuit: add32BitCircuit,
+    inputBits: (() => {
+      if (party === 0) {
+        return numberTo32Bits(p0Input);
+      }
+
+      if (party === 1) {
+        return numberTo32Bits(p1Input);
+      }
+
+      return new Uint8Array(0);
+    })(),
+    inputBitsPerParty,
+    io: {
+      send: (toParty, channel, data) => {
+        bqs.get(party, toParty, channel).push(data);
+      },
+      recv: async (fromParty, channel, len) => {
+        return bqs.get(fromParty, party, channel).pop(len);
+      },
+    }
+  })));
+
+  return outputBits.map(bits => numberFrom32Bits(bits));
 }
 
 /**

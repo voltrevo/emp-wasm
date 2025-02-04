@@ -257,7 +257,7 @@ public:
                     mask[i] = false;
                 else if(cmpBlock(&tmp, &ttt, 1))
                     mask[i] = true;
-				else throw std::runtime_error("no match! ALICE");
+                else throw std::runtime_error("no match! ALICE");
             }
         } else {
             for(int i = cf->n1; i < cf->n1+cf->n2; ++i) {
@@ -271,7 +271,7 @@ public:
                 } else if(cmpBlock(&tmp, &ttt, 1)) {
                     mask[i] = true;
                 }
-				else throw std::runtime_error(std::string("no match! BOB ") + std::to_string(i));
+                else throw std::runtime_error(std::string("no match! BOB ") + std::to_string(i));
             }
 
             send_partial_block<SSP>(io, mac, cf->n1);
@@ -343,7 +343,7 @@ public:
                         mask_input[cf->gates[4*i+2]] = false;
                     else if(cmpBlock(&GT[ands][index][0], &ttt, 1))
                         mask_input[cf->gates[4*i+2]] = true;
-					else throw std::runtime_error(std::to_string(ands) + " no match GT!");
+                    else throw std::runtime_error(std::to_string(ands) + " no match GT!");
                     mask_input[cf->gates[4*i+2]] = logic_xor(mask_input[cf->gates[4*i+2]], getLSB(GTM[ands][index]));
 
                     labels[cf->gates[4*i+2]] = GT[ands][index][1] ^ GTM[ands][index];
@@ -369,7 +369,7 @@ public:
                     o[i] = false;
                 else if(cmpBlock(&tmp, &ttt, 1))
                     o[i] = true;
-				else throw std::runtime_error("no match output label!");
+                else throw std::runtime_error("no match output label!");
             }
             for(int i = 0; i < cf->n3; ++i) {
                 output[i] = logic_xor(o[i], mask_input[cf->num_wire - cf->n3 + i]);
@@ -403,14 +403,14 @@ public:
                         output[i] = false;
                     else if(cmpBlock(&tmp, &ttt, 1))
                         output[i] = true;
-					else throw std::runtime_error("no match output label!");
+                    else throw std::runtime_error("no match output label!");
                     block mask_label = tmp_label[i];
                     if(tmp_mask_input[i])
                         mask_label = mask_label ^ fpre->Delta;
                     mask_label = mask_label & MASK;
                     block masked_labels = labels[cf->num_wire - cf-> n3 + i] & MASK;
                     if(!cmpBlock(&mask_label, &masked_labels, 1))
-						throw std::runtime_error("no match output label2!");
+                        throw std::runtime_error("no match output label2!");
 
                     output[i] = logic_xor(output[i], tmp_mask_input[i]);
                     output[i] = logic_xor(output[i], getLSB(mac[cf->num_wire - cf->n3 + i]));
@@ -437,7 +437,7 @@ public:
                 block tmp;io.recv_block(&tmp, 1);
                 if(r[i]) tmp = tmp ^ DD;
                 if (!cmpBlock(&tmp, &MAC[i], 1))
-					throw std::runtime_error(std::to_string(i) + " WRONG ABIT!");
+                    throw std::runtime_error(std::to_string(i) + " WRONG ABIT!");
             }
 
         } else {
@@ -446,7 +446,7 @@ public:
                 io.recv_data(tmp, 3);
                 bool res = (logic_xor(tmp[0], r[3*i] )) and (logic_xor(tmp[1], r[3*i+1]));
                 if(res != logic_xor(tmp[2], r[3*i+2]) ) {
-					throw std::runtime_error(std::to_string(i) + " WRONG!");
+                    throw std::runtime_error(std::to_string(i) + " WRONG!");
                 }
             }
             block DD;io.recv_block(&DD, 1);
@@ -455,7 +455,7 @@ public:
                 block tmp;io.recv_block(&tmp, 1);
                 if(r[i]) tmp = tmp ^ DD;
                 if (!cmpBlock(&tmp, &MAC[i], 1))
-					throw std::runtime_error(std::to_string(i) + " WRONG ABIT!");
+                    throw std::runtime_error(std::to_string(i) + " WRONG ABIT!");
             }
             io.send_block(&fpre->Delta, 1);
             io.send_block(KEY, length*3);
@@ -472,7 +472,7 @@ public:
                 block tmp;io.recv_block(&tmp, 1);
                 if(getLSB(MAC)) tmp = tmp ^ DD;
                 if (!cmpBlock(&tmp, &MAC, 1))
-					throw std::runtime_error(std::to_string(i) + " WRONG ABIT!2");
+                    throw std::runtime_error(std::to_string(i) + " WRONG ABIT!2");
             }
         } else {
             block DD;io.recv_block(&DD, 1);
@@ -480,7 +480,7 @@ public:
                 block tmp;io.recv_block(&tmp, 1);
                 if(getLSB(MAC)) tmp = tmp ^ DD;
                 if (!cmpBlock(&tmp, &MAC, 1))
-					throw std::runtime_error(std::to_string(i) + " WRONG ABIT!2");
+                    throw std::runtime_error(std::to_string(i) + " WRONG ABIT!2");
             }
             io.send_block(&fpre->Delta, 1);
             io.send_block(&KEY, 1);

@@ -1,29 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2018 Xiao Wang (wangxiao@gmail.com)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Enquiries about further applications and development opportunities are welcome.
-*/
-
 #include <emp-tool/emp-tool.h>
 #include "emp-tool/io/net_io.h"
 #include "emp-ag2pc/2pc.h"
@@ -82,13 +56,13 @@ int main(int argc, char** argv) {
     std::vector<bool> out = twopc.online(in, true);
     cout << "online:\t" << party << "\t" << time_from(t1) << endl;
 
-	string res = "";
-	for (int i = 0; i < out.size(); ++i)
-		res += (out[i] ? "1" : "0");
-	cout << res << endl;
-	cout << binary_to_hex(res) << endl;
-	cout << sha1_empty << endl;
-	cout << (binary_to_hex(res) == string(sha1_empty) ? "GOOD!" : "BAD!") << endl;
+    string res = "";
+    for (int i = 0; i < out.size(); ++i)
+        res += (out[i] ? "1" : "0");
+    cout << res << endl;
+    cout << binary_to_hex(res) << endl;
+    cout << sha1_empty << endl;
+    cout << (binary_to_hex(res) == string(sha1_empty) ? "GOOD!" : "BAD!") << endl;
 
     return 0;
 }

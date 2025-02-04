@@ -1,6 +1,6 @@
 # emp-wasm
 
-Wasm build of authenticated garbling from [emp-toolkit/emp-ag2pc](https://github.com/emp-toolkit/emp-ag2pc).
+Wasm build of authenticated garbling from [emp-toolkit/emp-agmpc](https://github.com/emp-toolkit/emp-agmpc).
 
 (If you're not familiar with garbled circuits, you might find [this video](https://www.youtube.com/watch?v=FMZ-HARN0gI) helpful.)
 
@@ -15,7 +15,7 @@ npm install emp-wasm
 ```
 
 ```ts
-import { secure2PC, BufferedIO, IO } from 'emp-wasm';
+import { secureMPC, BufferedIO, IO } from 'emp-wasm';
 
 import circuit from './circuit.ts';
 
@@ -24,18 +24,23 @@ async function main() {
   // for this example
   const io = await makeWebSocketIO('wss://somehow-connect-to-bob');
 
-  const output = await secure2PC(
-    'alice', // use 'bob' in the other client
+  const output = await secureMPC({
+    party: 0, // use 1 in the other client
+    size: 2, // the number of participants
+             // note: this example is a bit 2PC-specific, for a more general
+             // example, see internalDemo3 in demo.ts
     circuit, // a string defining the circuit, see circuits/*.txt for examples
-    Uint8Array.from([/* 0s and 1s defining your input bits */]),
+    inputBits: Uint8Array.from([/* 0s and 1s defining your input bits */]),
+    inputBitsPerParty: [32, 32], // the number of bits contributed by each participant
     io,
-  );
+    // mode: 'auto', // defaults to auto, but you can force '2pc' mode or 'mpc' mode
+  });
 
   // the output bits from the circuit as a Uint8Array
   console.log(output);
 }
 
-async function makeWebSocketIO(url: string) {
+async function makeWebSocketIO(url: string, otherParty: number) {
   const sock = new WebSocket(url);
   sock.binaryType = 'arraybuffer';
 
@@ -48,7 +53,21 @@ async function makeWebSocketIO(url: string) {
   // you need to implement io.recv(len) returning a promise to exactly len
   // bytes
   const io = new BufferedIO(
-    data => sock.send(data),
+    otherParty,
+    (toParty, channel, data) => {
+      assert(toParty === otherParty, 'Unexpected party');
+      const channelBuf = new Uint8Array(data.length + 1);
+
+      // emp-wasm requires an a-channel and a b-channel between each pair of
+      // participants. We implement this by actually using a single underlying
+      // channel and prefixing each message with a byte indicating the channel.
+      // BufferedIO assumes this too. If you're not using BufferedIO, you can
+      // provide these multiple channels with a method of your choosing.
+      channelBuf[0] = channel.charCodeAt(0);
+
+      channelBuf.set(data, 1);
+      sock.send(channelBuf);
+    },
     () => sock.close(),
   );
 
@@ -58,8 +77,10 @@ async function makeWebSocketIO(url: string) {
       return;
     }
 
-    // Pass Uint8Arrays to io.accept
-    io.accept(new Uint8Array(event.data));
+    const channelBuf = new Uint8Array(event.data);
+    const channel = channelFromByte(channelBuf[0]);
+
+    io.accept(channel, channelBuf.slice(1));
   };
 
   sock.onerror = (e) => {
@@ -69,6 +90,17 @@ async function makeWebSocketIO(url: string) {
   sock.onclose = () => io.close();
 
   return io;
+}
+
+function channelFromByte(byte: number): 'a' | 'b' {
+  switch (byte) {
+    case 'a'.charCodeAt(0):
+      return 'a';
+    case 'b'.charCodeAt(0):
+      return 'b';
+    default:
+      throw new Error('Invalid channel');
+  }
 }
 
 main().catch(console.error);
@@ -92,28 +124,37 @@ Requirements:
 
 If you don't want to juggle multiple pages, you can do `await internalDemo(3, 5)` in the console, which will run two instances in the same page communicating internally.
 
+### `internalDemo3`
+
+This is the only included MPC (>2 parties) demo. MPC mode uses different underlying code, and you can also use MPC mode with the 2PC demos by appending `, 'mpc'` to your parameters. [MPC Framework](https://github.com/voltrevo/mpc-framework) is the intended and higher level API, see that repo for the latest information and demos.
+
+```
+> await internalDemo3(1, 2, 3)
+< { alice: 6, bob: 6, charlie: 6 }
+```
+
 ### `consoleDemo`
 
-Open the url in the console in two tabs and run `consoleDemo('alice', 3)` in one and `consoleDemo('bob', 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
+Open the url in the console in two tabs and run `consoleDemo(0, 3)` in one and `consoleDemo(1, 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).
 
 ### `wsDemo`
 
-Open the url in the console in two tabs and run `await wsDemo('alice', 3)` in one and `await wsDemo('bob', 5)` in the other. This uses a websocket relay included in `npm run demo` and defined in `scripts/relayServer.ts`.
+Open the url in the console in two tabs and run `await wsDemo(0, 3)` in one and `await wsDemo(1, 5)` in the other. This uses a websocket relay included in `npm run demo` and defined in `scripts/relayServer.ts`.
 
 ### `rtcDemo`
 
-Open the url in the console in two tabs and run `await rtcDemo('pair-id', 'alice', 3)` in one and `await rtcDemo('pair-id', 'bob', 5)` in the other. This one uses WebRTC (via [peerjs](https://npmjs.com/package/peerjs)) and should work across networks, locating each other via `pair-id`.
+Open the url in the console in two tabs and run `await rtcDemo('pair-id', 0, 3)` in one and `await rtcDemo('pair-id', 1, 5)` in the other. This one uses WebRTC (via [peerjs](https://npmjs.com/package/peerjs)) and should work across networks, locating each other via `pair-id`.
 
 ## Regular C++ Compile
 
 This library started out as a stripped down version of the original C++ project. You can compile this for your local system and test it like this:
 
 ```sh
-./scripts/build_local_test.sh
-./scripts/local_test.sh
+./scripts/build_mpc_test.sh
+./scripts/mpc_test.sh
 ```
 
-This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to Alice that Bob knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.
+This will calculate `sha1("")==da39a3ee5e6b4b0d3255bfef95601890afd80709`. It proves to the three other participants that Alice (the first party) knows the preimage of this hash. Each side is run in a separate process and they communicate over a local socket.
 
 Requirements:
 - clang
@@ -122,7 +163,7 @@ Requirements:
 
 ## Uncertain Changes
 
-For most of the changes I'm reasonably confident that I preserved behavior, but there some things I'm less confident about:
+For most of the changes I'm reasonably confident that I preserved behavior, but there some things I'm less confident about, including:
 
 - send and recv swapped for bob in `Fpre::generate` (see TODO comment)
 - after removing threading, I also moved everything to a single io channel

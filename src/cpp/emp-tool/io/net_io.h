@@ -28,6 +28,7 @@ public:
     bool has_sent = false;
     string addr;
     int port;
+
     NetIO(const char * address, int port) {
         if (port <0 || port > 65535) {
             throw std::runtime_error("Invalid port number!");

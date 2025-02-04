@@ -1,14 +1,16 @@
 import { EventEmitter } from "ee-typed";
 import BufferQueue from "./BufferQueue.js";
 import { IO } from "./types";
+import assert from "./assert.js";
 
 export default class BufferedIO
   extends EventEmitter<{ error(e: Error): void }>
   implements IO
 {
-  private bq = new BufferQueue();
+  private bq = { a: new BufferQueue(), b: new BufferQueue() };
 
   constructor(
+    public otherParty: number,
     public send: IO['send'],
     private closeOther?: IO['close'],
   ) {
@@ -16,19 +18,21 @@ export default class BufferedIO
   }
 
   close() {
-    if (this.bq.isClosed()) {
+    if (this.bq.a.isClosed() && this.bq.b.isClosed()) {
       return;
     }
 
-    this.bq.close();
+    this.bq.a.close();
+    this.bq.b.close();
     this.closeOther?.();
   }
 
-  async recv(len: number): Promise<Uint8Array> {
-    return await this.bq.pop(len);
+  async recv(fromParty: number, channel: 'a' | 'b', len: number): Promise<Uint8Array> {
+    assert(fromParty === this.otherParty, 'fromParty !== this.otherParty');
+    return await this.bq[channel].pop(len);
   }
 
-  accept(data: Uint8Array) {
-    this.bq.push(data);
+  accept(channel: 'a' | 'b', data: Uint8Array) {
+    this.bq[channel].push(data);
   }
 }
