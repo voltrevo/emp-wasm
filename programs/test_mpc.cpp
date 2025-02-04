@@ -4,7 +4,7 @@ using namespace std;
 using namespace emp;
 
 const string circuit_file_location = "circuits/sha-1.txt";;
-static char out3[] = "92b404e556588ced6c1acd4ebf053f6809f73a93";//bafbc2c87c33322603f38e06c3e0f79c1f1b1475";
+const string sha1_empty = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
 
 int main(int argc, char** argv) {
     int port, party;
@@ -31,7 +31,13 @@ int main(int argc, char** argv) {
         input.assign_party(i, 1);
 
         if (party == 1) {
-            input.assign_plaintext_bit(i, false);
+            if (i == 0) {
+                // We need a single starting 1 for a valid sha-1 block.
+                // This will result in sha1("") == da39a3ee5e6b4b0d3255bfef95601890afd80709.
+                input.assign_plaintext_bit(i, true);
+            } else {
+                input.assign_plaintext_bit(i, false);
+            }
         }
     }
 
@@ -50,9 +56,9 @@ int main(int argc, char** argv) {
     string res = "";
     for(int i = 0; i < cf.n3; ++i)
         res += (output.get_plaintext_bit(i)?"1":"0");
-    cout << hex_to_binary(string(out3))<<endl;
+    cout << hex_to_binary(sha1_empty)<<endl;
     cout << res<<endl;
-    cout << (res == hex_to_binary(string(out3))? "GOOD!":"BAD!")<<endl<<flush;
+    cout << (res == hex_to_binary(sha1_empty)? "GOOD!":"BAD!")<<endl<<flush;
 
     delete mpc;
     return 0;
