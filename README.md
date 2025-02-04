@@ -96,6 +96,15 @@ Requirements:
 
 If you don't want to juggle multiple pages, you can do `await internalDemo(3, 5)` in the console, which will run two instances in the same page communicating internally.
 
+### `internalDemo3`
+
+This is the only included MPC (>2 parties) demo. MPC mode uses different underlying code, and you can also use MPC mode with the 2PC demos by appending `, 'mpc'` to your parameters. [MPC Framework](https://github.com/voltrevo/mpc-framework) is the intended and higher level API, see that repo for the latest information and demos.
+
+```
+> await internalDemo3(1, 2, 3)
+< { alice: 6, bob: 6, charlie: 6 }
+```
+
 ### `consoleDemo`
 
 Open the url in the console in two tabs and run `consoleDemo(0, 3)` in one and `consoleDemo(1, 5)` in the other. This will begin a back-and-forth where each page prints `write(...)` to the console, which you can paste into the other console to send that data to the other instance (note: sometimes there are multiple writes, make sure to copy them over in order). After about 15 rounds you'll get an alert showing `8` (`== 3 + 5`).

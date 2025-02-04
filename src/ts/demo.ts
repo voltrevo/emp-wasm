@@ -51,6 +51,35 @@ windowAny.internalDemo = async function(
   };
 }
 
+windowAny.internalDemo3 = async function(
+  aliceInput: number,
+  bobInput: number,
+  charlieInput: number,
+  mode: '2pc' | 'mpc' | 'auto' = 'auto',
+): Promise<{ alice: number, bob: number, charlie: number }> {
+  const bqs = new BufferQueueStore();
+  const inputs = [aliceInput, bobInput, charlieInput];
+
+  const [aliceBits, bobBits, charlieBits] = await Promise.all([0, 1, 2].map(party => secureMPC({
+    party,
+    size: 3,
+    circuit: aPlusBPlusC32BitCircuit,
+    inputBits: numberTo32Bits(inputs[party]),
+    inputBitsPerParty: [32, 32, 32],
+    io: {
+      send: (party2, channel, data) => bqs.get(party, party2, channel).push(data),
+      recv: (party2, channel, len) => bqs.get(party2, party, channel).pop(len),
+    },
+    mode,
+  })));
+
+  return {
+    alice: numberFrom32Bits(aliceBits),
+    bob: numberFrom32Bits(bobBits),
+    charlie: numberFrom32Bits(charlieBits),
+  };
+}
+
 windowAny.consoleDemo = async function(
   party: number,
   input: number,
@@ -243,6 +272,20 @@ async function makePeerIO(pairingCode: string, party: number) {
   conn.on('close', () => io.close());
 
   return io;
+}
+
+class BufferQueueStore {
+  bqs = new Map<string, BufferQueue>();
+
+  get(from: number | string, to: number | string, channel: 'a' | 'b') {
+    const key = `${from}-${to}-${channel}`;
+
+    if (!this.bqs.has(key)) {
+      this.bqs.set(key, new BufferQueue());
+    }
+
+    return this.bqs.get(key)!;
+  }
 }
 
 /**
