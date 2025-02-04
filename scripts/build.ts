@@ -111,6 +111,13 @@ async function fixEmscriptenCode(gitRoot: string) {
     // a whole.
     'var fs=(()=>{try{return require("fs")}catch(e){throw e}})();'
   );
+
+  // For deno compatibility
+  await replaceInFile(
+    join(gitRoot, 'build/jslib.js'),
+    ['import("module")', "import('module')"],
+    'import("node:module")',
+  );
 }
 
 async function replaceInFile(path: string, searches: string[], replace: string) {
