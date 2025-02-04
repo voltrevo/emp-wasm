@@ -27,6 +27,8 @@ async function main() {
   const output = await secureMPC({
     party: 0, // use 1 in the other client
     size: 2, // the number of participants
+             // note: this example is a bit 2PC-specific, for a more general
+             // example, see internalDemo3 in demo.ts
     circuit, // a string defining the circuit, see circuits/*.txt for examples
     inputBits: Uint8Array.from([/* 0s and 1s defining your input bits */]),
     inputBitsPerParty: [32, 32], // the number of bits contributed by each participant
@@ -38,8 +40,7 @@ async function main() {
   console.log(output);
 }
 
-// TODO: Update this (multiple participants, channels)
-async function makeWebSocketIO(url: string) {
+async function makeWebSocketIO(url: string, otherParty: number) {
   const sock = new WebSocket(url);
   sock.binaryType = 'arraybuffer';
 
@@ -52,7 +53,21 @@ async function makeWebSocketIO(url: string) {
   // you need to implement io.recv(len) returning a promise to exactly len
   // bytes
   const io = new BufferedIO(
-    data => sock.send(data),
+    otherParty,
+    (toParty, channel, data) => {
+      assert(toParty === otherParty, 'Unexpected party');
+      const channelBuf = new Uint8Array(data.length + 1);
+
+      // emp-wasm requires an a-channel and a b-channel between each pair of
+      // participants. We implement this by actually using a single underlying
+      // channel and prefixing each message with a byte indicating the channel.
+      // BufferedIO assumes this too. If you're not using BufferedIO, you can
+      // provide these multiple channels with a method of your choosing.
+      channelBuf[0] = channel.charCodeAt(0);
+
+      channelBuf.set(data, 1);
+      sock.send(channelBuf);
+    },
     () => sock.close(),
   );
 
@@ -62,8 +77,10 @@ async function makeWebSocketIO(url: string) {
       return;
     }
 
-    // Pass Uint8Arrays to io.accept
-    io.accept(new Uint8Array(event.data));
+    const channelBuf = new Uint8Array(event.data);
+    const channel = channelFromByte(channelBuf[0]);
+
+    io.accept(channel, channelBuf.slice(1));
   };
 
   sock.onerror = (e) => {
@@ -73,6 +90,17 @@ async function makeWebSocketIO(url: string) {
   sock.onclose = () => io.close();
 
   return io;
+}
+
+function channelFromByte(byte: number): 'a' | 'b' {
+  switch (byte) {
+    case 'a'.charCodeAt(0):
+      return 'a';
+    case 'b'.charCodeAt(0):
+      return 'b';
+    default:
+      throw new Error('Invalid channel');
+  }
 }
 
 main().catch(console.error);

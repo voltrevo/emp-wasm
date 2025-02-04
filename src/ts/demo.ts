@@ -163,7 +163,14 @@ async function makeWebSocketIO(url: string, otherParty: number) {
     (toParty, channel, data) => {
       assert(toParty === otherParty, 'Unexpected party');
       const channelBuf = new Uint8Array(data.length + 1);
+
+      // emp-wasm requires an a-channel and a b-channel between each pair of
+      // participants. We implement this by actually using a single underlying
+      // channel and prefixing each message with a byte indicating the channel.
+      // BufferedIO assumes this too. If you're not using BufferedIO, you can
+      // provide these multiple channels with a method of your choosing.
       channelBuf[0] = channel.charCodeAt(0);
+
       channelBuf.set(data, 1);
       sock.send(channelBuf);
     },
