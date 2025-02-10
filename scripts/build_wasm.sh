@@ -40,6 +40,7 @@ em++ programs/jslib.cpp -sASYNCIFY -o build/jslib.js \
   -lmbedcrypto \
   -lmbedx509 \
   -lembind \
+  -sALLOW_MEMORY_GROWTH \
   -s SINGLE_FILE=1 \
   -s ENVIRONMENT='web,worker,node' \
   -sNO_DISABLE_EXCEPTION_CATCHING \
