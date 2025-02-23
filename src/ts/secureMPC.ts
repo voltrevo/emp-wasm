@@ -80,6 +80,10 @@ export default function secureMPC({
       } else if (message.type === 'error') {
         // Reject the promise if an error occurred
         reject(new Error(message.error));
+      } else if (message.type === 'log') {
+        console.log('Worker log:', message.msg);
+      } else {
+        console.error('Unexpected message from worker:', message);
       }
     };
 

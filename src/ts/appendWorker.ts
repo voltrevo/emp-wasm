@@ -65,10 +65,13 @@ async function secureMPC({
 
   const method = calculateMethod(mode, size, circuit);
 
-  const result = new Promise<Uint8Array>((resolve, reject) => {
+  const result = new Promise<Uint8Array>(async (resolve, reject) => {
     try {
       emp.handleOutput = resolve;
       emp.handleError = reject;
+
+      await pingTest(party, emp);
+      await throughputTest(party, emp);
 
       module[method](party, size);
     } catch (error) {
@@ -163,3 +166,73 @@ onmessage = async (event) => {
     }
   }
 };
+
+async function pingTest(party: number, emp: Module['emp']) {
+  const io = emp!.io!;
+  const start = Date.now();
+  let resp: unknown;
+
+  if (party === 0) {
+    io.send(1, 'a', Uint8Array.from([13]));
+    resp = await io.recv(1, 'a', 1);
+  } else if (party === 1) {
+    const data = await io.recv(0, 'a', 1);
+    io.send(0, 'a', data);
+  }
+  
+  const end = Date.now();
+
+  if (party === 0) {
+    const msg = `Ping test: ${end - start}ms, response: ${resp}`;
+    postMessage({ type: 'log', msg });
+  }
+}
+
+async function throughputTest(party: number, emp: Module['emp']) {
+  let throughputStartTime = -Infinity;
+
+  const io = emp!.io!;
+
+  const bufSize = 128 * 1024; // 128kB
+  const sendCount = 160; // 20MB total (160 * 128kB)
+  const totalMB = bufSize * sendCount / 1024 / 1024;
+
+  if (party === 0) {
+    console.log('Starting throughput test');
+    throughputStartTime = Date.now();
+
+    for (let i = 0; i < sendCount; i++) {
+      const buf = new Uint8Array(bufSize);
+      for (let j = 0; j < bufSize; j++) {
+        buf[j] = (i + j) % 256;
+      }
+      io.send(1, 'b', buf);
+    }
+  }
+
+  if (party === 1) {
+    for (let i = 0; i < sendCount; i++) {
+      const bufReceived = await io.recv(0, 'b', bufSize);
+
+      // if (!buffersEqual(buf, bufReceived)) {
+      //   throw new Error('Buffer mismatch 3');
+      // }
+    }
+
+    // Send a final message to signal the end of the test
+    io.send(0, 'b', Uint8Array.from([123]));
+  }
+
+  if (party === 0) {
+    const bufReceived = await io.recv(1, 'b', 1);
+
+    if (bufReceived[0] !== 123) {
+      throw new Error('Buffer mismatch 4');
+    }
+
+    const throughputTime = Date.now() - throughputStartTime;
+    const msg = `Throughput time: ${throughputTime}ms, MB/s: ${totalMB / (throughputTime / 1000)}`;
+
+    postMessage({ type: 'log', msg });
+  }
+}
