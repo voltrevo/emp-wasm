@@ -7,6 +7,7 @@ type Module = {
     inputBitsPerParty?: number[];
     io?: IO;
     handleOutput?: (value: Uint8Array) => void;
+    handleState?: (state: string) => void;
   };
   _run_2pc(party: number, size: number): void;
   _run_mpc(party: number, size: number): void;
@@ -54,7 +55,10 @@ async function secureMPC({
     io?: IO;
     handleOutput?: (value: Uint8Array) => void
     handleError?: (error: Error) => void;
-  } = {};
+    handleState: (state: string) => void;
+  } = {
+    handleState: state => postMessage({ type: 'state_update', state }),
+  };
 
   module.emp = emp;
 
@@ -70,9 +74,12 @@ async function secureMPC({
       emp.handleOutput = resolve;
       emp.handleError = reject;
 
+      emp.handleState('ping_test');
       await pingTest(party, emp);
+      emp.handleState('throughput_test');
       await throughputTest(party, emp);
 
+      emp.handleState('enter_wasm');
       module[method](party, size);
     } catch (error) {
       reject(error);
@@ -121,6 +128,7 @@ onmessage = async (event) => {
   const message = event.data;
 
   if (message.type === 'start') {
+    postMessage({ type: 'state_update', state: 'begin_worker' });
     const { party, size, circuit, inputBits, inputBitsPerParty, mode } = message;
 
     // Create a proxy IO object to communicate with the main thread

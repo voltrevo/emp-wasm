@@ -20,6 +20,7 @@ const getWorkerUrl = (() => {
 
 export default function secureMPC({
   party, size, circuit, inputBits, inputBitsPerParty, io, mode = 'auto',
+  onStateUpdate = () => {},
 }: {
   party: number,
   size: number,
@@ -28,6 +29,7 @@ export default function secureMPC({
   inputBitsPerParty: number[],
   io: IO,
   mode?: '2pc' | 'mpc' | 'auto',
+  onStateUpdate?: (state: string) => void,
 }): Promise<Uint8Array> {
   if (typeof Worker === 'undefined') {
     return nodeSecureMPC({
@@ -82,6 +84,8 @@ export default function secureMPC({
         reject(new Error(message.error));
       } else if (message.type === 'log') {
         console.log('Worker log:', message.msg);
+      } else if (message.type === 'state_update') {
+        onStateUpdate(message.state);
       } else {
         console.error('Unexpected message from worker:', message);
       }

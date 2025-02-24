@@ -11,6 +11,14 @@
 void run_2pc_impl(int party, int nP);
 void run_mpc_impl(int party, int nP);
 
+EM_JS(void, handle_state, (const char* state), {
+    if (!Module.emp?.handleState) {
+        throw new Error("Module.emp.handleState is not defined in JavaScript.");
+    }
+
+    Module.emp.handleState(UTF8ToString(state));
+});
+
 // Implement send_js function to send data from C++ to JavaScript
 EM_JS(void, send_js, (int to_party, char channel_label, const void* data, size_t len), {
     if (!Module.emp?.io?.send) {
@@ -246,6 +254,8 @@ extern "C" {
 }
 
 void run_2pc_impl(int party, int nP) {
+    handle_state("begin_2pc");
+
     if (nP != 2) {
         throw std::runtime_error("2PC only supports 2 parties");
     }
@@ -280,10 +290,15 @@ void run_2pc_impl(int party, int nP) {
 
         auto twopc = emp::C2PC(io, party, &circuit);
 
+        handle_state("function_independent");
         twopc.function_independent();
+        handle_state("function_dependent");
         twopc.function_dependent();
 
+        handle_state("online");
         std::vector<bool> output_bits = twopc.online(input_bits, true);
+
+        handle_state("finish");
         handle_output_bits(output_bits);
     } catch (const std::exception& e) {
         handle_error(e.what());
@@ -291,13 +306,22 @@ void run_2pc_impl(int party, int nP) {
 }
 
 void run_mpc_impl(int party, int nP) {
+    handle_state("begin_mpc");
+
     try {
         std::shared_ptr<IMultiIO> io = std::make_shared<MultiIOJS>(party, nP);
         auto circuit = get_circuit();
+
+        handle_state("CMPC_constructor");
         auto mpc = CMPC(io, &circuit);
 
+        handle_state("function_independent");
         mpc.function_independent();
+
+        handle_state("function_dependent");
         mpc.function_dependent();
+
+        handle_state("io_setup");
 
         std::vector<bool> input_bits = get_input_bits();
 
@@ -331,14 +355,17 @@ void run_mpc_impl(int party, int nP) {
             output.assign_party(i, 0);
         }
 
+        handle_state("online");
         mpc.online(&input, &output);
 
         std::vector<bool> output_bits;
 
+        handle_state("output");
         for (int i = 0; i < circuit.n3; i++) {
             output_bits.push_back(output.get_plaintext_bit(i));
         }
 
+        handle_state("finish");
         handle_output_bits(output_bits);
     } catch (const std::exception& e) {
         handle_error(e.what());
