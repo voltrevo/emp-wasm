@@ -171,19 +171,33 @@ async function pingTest(party: number, emp: Module['emp']) {
   const io = emp!.io!;
   const start = Date.now();
   let resp: unknown;
+  let responseCount = 0;
 
   if (party === 0) {
-    io.send(1, 'a', Uint8Array.from([13]));
-    resp = await io.recv(1, 'a', 1);
+    while (Date.now() - start < 1000) {
+      io.send(1, 'a', Uint8Array.from([13]));
+      resp = await io.recv(1, 'a', 1);
+      responseCount++;
+    }
+    io.send(1, 'a', Uint8Array.from([0]));
   } else if (party === 1) {
-    const data = await io.recv(0, 'a', 1);
-    io.send(0, 'a', data);
+    while (true) {
+      const data = await io.recv(0, 'a', 1);
+
+      if (data[0] === 0) {
+        break;
+      }
+
+      io.send(0, 'a', data);
+    }
   }
   
   const end = Date.now();
 
   if (party === 0) {
-    const msg = `Ping test: ${end - start}ms, response: ${resp}`;
+    let duration = end - start;
+    let pingAvg = duration / responseCount;
+    const msg = `Ping test: ${pingAvg.toFixed(3)}ms (avg), response: ${resp}`;
     postMessage({ type: 'log', msg });
   }
 }
