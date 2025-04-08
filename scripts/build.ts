@@ -42,6 +42,11 @@ async function build() {
   // `getEmscriptenCode` because the file itself is used when loading in NodeJS.
   await fixEmscriptenCode(gitRoot);
 
+  await fs.copyFile(
+    join(gitRoot, 'dist/build/jslib.js'),
+    join(gitRoot, 'build/jslib.js'),
+  );
+
   const workerCode = [
     await getEmscriptenCode(),
     await getAppendWorkerCode(),
@@ -103,9 +108,29 @@ async function shell(cmd: string, args: string[], cwd: string): Promise<void> {
 }
 
 async function fixEmscriptenCode(gitRoot: string) {
-  await replaceInFile(
-    join(gitRoot, 'build/jslib.js'),
-    ['var fs=require("fs")', "var fs = require('fs')"],
+  const path = join(gitRoot, 'dist/build/jslib.js');
+  let content = await fs.readFile(path, 'utf-8');
+
+  content = replace(
+    content,
+    ['function intArrayFromBase64(s) { if (typeof ENVIRONMENT_IS_NODE'],
+    // Emscripten falsely detects deno as node here and only uses it for a
+    // small performance optimization that doesn't work in deno.
+    'function intArrayFromBase64(s) { if (false && typeof ENVIRONMENT_IS_NODE',
+  );
+
+  content = replace(
+    content,
+    ['import.meta.url'],
+    // Emscripten uses the 'data:' prefix as a switch to realise that it can't
+    // support certain things. We don't need those things, so we can just make
+    // it look like that, and that fixes deno.
+    '"data:workaround"',
+  );
+
+  content = replace(
+    content,
+    ['var fs = require("fs")', "var fs = require('fs')"],
     // This doesn't really affect behavior, but it fixes a nextjs issue where
     // it analyzes the require statically and fails even when the code works as
     // a whole.
@@ -113,16 +138,16 @@ async function fixEmscriptenCode(gitRoot: string) {
   );
 
   // For deno compatibility
-  await replaceInFile(
-    join(gitRoot, 'build/jslib.js'),
+  content = replace(
+    content,
     ['import("module")', "import('module')"],
     'import("node:module")',
   );
+
+  await fs.writeFile(path, content);
 }
 
-async function replaceInFile(path: string, searches: string[], replace: string) {
-  const content = await fs.readFile(path, 'utf-8');
-
+function replace(content: string, searches: string[], replace: string) {
   for (const search of searches) {
     const parts = content.split(search);
 
@@ -130,10 +155,7 @@ async function replaceInFile(path: string, searches: string[], replace: string) 
       continue;
     }
 
-    const updatedContent = parts.join(replace);
-
-    await fs.writeFile(path, updatedContent, 'utf-8');
-    return;
+    return parts.join(replace);
   }
 
   throw new Error(`Search strings not found in file: ${JSON.stringify(searches)}`)
