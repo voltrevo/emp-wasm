@@ -147,7 +147,7 @@ onmessage = async (event) => {
 
       postMessage({ type: 'result', result });
     } catch (error) {
-      postMessage({ type: 'error', error: (error as Error).message });
+      postMessage({ type: 'error', error: (error as Error).stack });
     }
   } else if (message.type === 'io_recv_response') {
     const { id, data } = message;
