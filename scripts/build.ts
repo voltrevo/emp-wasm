@@ -111,6 +111,8 @@ async function fixEmscriptenCode(gitRoot: string) {
   const path = join(gitRoot, 'dist/build/jslib.js');
   let content = await fs.readFile(path, 'utf-8');
 
+  content = `function echo(x) { return x; }\n${content}`;
+
   content = replace(
     content,
     ['function intArrayFromBase64(s) { if (typeof ENVIRONMENT_IS_NODE'],
@@ -134,14 +136,17 @@ async function fixEmscriptenCode(gitRoot: string) {
     // This doesn't really affect behavior, but it fixes a nextjs issue where
     // it analyzes the require statically and fails even when the code works as
     // a whole.
+    // FIXME: I can no longer reproduce nextjs failing without this replacement.
+    // It's easier to just leave it in for now but in future this should help
+    // motivate its removal if nextjs still doesn't seem to need it anymore.
     'var fs=(()=>{try{return require("fs")}catch(e){throw e}})();'
   );
 
-  // For deno compatibility
+  // For deno and nextjs compatibility
   content = replace(
     content,
     ['import("module")', "import('module')"],
-    'import("node:module")',
+    'import(echo("node:module"))',
   );
 
   await fs.writeFile(path, content);
